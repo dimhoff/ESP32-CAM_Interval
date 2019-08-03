@@ -256,12 +256,7 @@ void init_time()
 {
   Serial.print("Waiting for time to synchronize: ");
   
-  sntp_setoperatingmode(SNTP_OPMODE_POLL);
-  sntp_setservername(0, cfg.ntp_server);
-  sntp_init();
-
-  setenv("TZ", cfg.tzinfo, 1);
-  tzset();
+  configTzTime(cfg.tzinfo, cfg.ntp_server);
 
   // wait for time to be set
   int retry = 0;

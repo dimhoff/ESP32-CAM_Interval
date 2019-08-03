@@ -473,8 +473,6 @@ static bool init_capture_dir()
  */
 static void save_photo()
 {
-  static unsigned int file_number = 0;
-
   if (cfg.enable_busy_led) {
     digitalWrite(LED_GPIO_NUM, LOW);
   }
@@ -487,24 +485,15 @@ static void save_photo()
   camera_fb_t *fb = esp_camera_fb_get();
 
   // Generate filename
-  char filename[sizeof(capture_path) + 8 + 10 + 4 + 1];
   time_t now = time(NULL);
-/* TODO: remove, instead always use date format filenames.
-  if (now < NOT_BEFORE_TIME || internet_connected == false) {
-    // If no internet or time not set, use numbers
-    snprintf(filename, sizeof(filename), "%s/capture_%06u.jpg", capture_path,
-               file_number);
-    file_number++;
-  } else {
-*/
-    struct tm timeinfo;
-    localtime_r(&now, &timeinfo);
+  struct tm timeinfo;
+  localtime_r(&now, &timeinfo);
 
-    size_t capture_path_len = strlen(capture_path);
-    strcpy(filename, capture_path);
-    strftime(&filename[capture_path_len], sizeof(filename) - capture_path_len,
-               "/%Y%m%d_%H%M%S.jpg", &timeinfo);
-//  }
+  char filename[sizeof(capture_path) + 15 + 4 + 1];
+  size_t capture_path_len = strlen(capture_path);
+  strcpy(filename, capture_path);
+  strftime(&filename[capture_path_len], sizeof(filename) - capture_path_len,
+             "/%Y%m%d_%H%M%S.jpg", &timeinfo);
 
   // Save picture
   FILE *file = fopen(filename, "w");

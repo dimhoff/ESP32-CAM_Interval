@@ -503,6 +503,11 @@ static void save_photo()
   Serial.print("Taking picture... ");
   camera_fb_t *fb = esp_camera_fb_get();
 
+  // Disable Flash
+  if (cfg.getEnableFlash()) {
+    digitalWrite(FLASH_GPIO_NUM, LOW);
+  }
+
   // Generate filename
   time_t now = time(NULL);
   struct tm timeinfo;
@@ -547,9 +552,6 @@ static void save_photo()
   }
   esp_camera_fb_return(fb);
   
-  if (cfg.getEnableFlash()) {
-    digitalWrite(FLASH_GPIO_NUM, LOW);
-  }
   if (cfg.getEnableBusyLed()) {
     digitalWrite(LED_GPIO_NUM, HIGH);
   }

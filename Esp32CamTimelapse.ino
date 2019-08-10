@@ -517,7 +517,7 @@ static void save_photo()
   // Generate Exif header
   const uint8_t *exif_header = NULL;
   size_t exif_len = 0;
-  get_exiv_header(fb, &exif_header, &exif_len);
+  get_exif_header(fb, &exif_header, &exif_len);
 
   size_t data_offset = get_jpeg_data_offset(fb);
 

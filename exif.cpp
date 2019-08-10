@@ -152,7 +152,7 @@ struct JpegExifHdr {
       uint32_t next_ifd; // Offset of next IFD, or 0x0 if last IFD
     } ifd_exif;
   } tiff_data;
-} exiv_hdr = {
+} exif_hdr = {
   htons_macro(0xffd8),
   htons_macro(0xffe1),
   htons_macro(sizeof(JpegExifHdr) - offsetof(JpegExifHdr, len)),
@@ -164,11 +164,11 @@ struct JpegExifHdr {
       .entries = {
         { TagTiffMake,
           TiffTypeAscii,
-          sizeof(exiv_hdr.tiff_data.ifd0_data.make),
+          sizeof(exif_hdr.tiff_data.ifd0_data.make),
           IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd0_data.make) },
         { TagTiffModel,
           TiffTypeAscii,
-          sizeof(exiv_hdr.tiff_data.ifd0_data.model),
+          sizeof(exif_hdr.tiff_data.ifd0_data.model),
           IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd0_data.model) },
         { TagTiffOrientation,
           TiffTypeShort, 1,
@@ -184,11 +184,11 @@ struct JpegExifHdr {
           IFD_SET_SHORT(0x0002) },
         { TagTiffSoftware,
           TiffTypeAscii,
-          sizeof(exiv_hdr.tiff_data.ifd0_data.software),
+          sizeof(exif_hdr.tiff_data.ifd0_data.software),
           IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd0_data.software) },
         { TagTiffDateTime,
           TiffTypeAscii,
-          sizeof(exiv_hdr.tiff_data.ifd0_data.datetime),
+          sizeof(exif_hdr.tiff_data.ifd0_data.datetime),
           IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd0_data.datetime) },
         { TagTiffYCbCrPositioning,
           TiffTypeShort, 1,
@@ -237,7 +237,7 @@ struct JpegExifHdr {
 };
 #pragma pack()
 
-const uint8_t *get_exiv_header(camera_fb_t *fb, const uint8_t **exiv_buf, size_t *exiv_len)
+const uint8_t *get_exif_header(camera_fb_t *fb, const uint8_t **exif_buf, size_t *exif_len)
 {
   // TODO: pass config to function and use that to set some of the image
   // taking conditions. Or do this only once, with a update config
@@ -253,28 +253,28 @@ const uint8_t *get_exiv_header(camera_fb_t *fb, const uint8_t **exiv_buf, size_t
   // Set date time
   struct tm timeinfo;
   localtime_r(&now_tv.tv_sec, &timeinfo);
-  strftime(exiv_hdr.tiff_data.ifd0_data.datetime,
-      sizeof(exiv_hdr.tiff_data.ifd0_data.datetime),
+  strftime(exif_hdr.tiff_data.ifd0_data.datetime,
+      sizeof(exif_hdr.tiff_data.ifd0_data.datetime),
       "%Y:%m:%d %H:%M:%S", &timeinfo);
 
   // Set sub-seconds time
   snprintf(
-      (char *) &(exiv_hdr.tiff_data.ifd_exif.entries[TAG_EXIF_SUBSEC_TIME_IDX].value),
+      (char *) &(exif_hdr.tiff_data.ifd_exif.entries[TAG_EXIF_SUBSEC_TIME_IDX].value),
       4,
       "%03ld",
       now_tv.tv_usec/1000);
 
   // Update image dimensions
-  exiv_hdr.tiff_data.ifd_exif.entries[TAG_EXIF_PIXEL_X_DIMENSION_IDX].value = IFD_SET_SHORT(fb->width);
-  exiv_hdr.tiff_data.ifd_exif.entries[TAG_EXIF_PIXEL_Y_DIMENSION_IDX].value = IFD_SET_SHORT(fb->height);
+  exif_hdr.tiff_data.ifd_exif.entries[TAG_EXIF_PIXEL_X_DIMENSION_IDX].value = IFD_SET_SHORT(fb->width);
+  exif_hdr.tiff_data.ifd_exif.entries[TAG_EXIF_PIXEL_Y_DIMENSION_IDX].value = IFD_SET_SHORT(fb->height);
 
-  *exiv_len = sizeof(exiv_hdr);
+  *exif_len = sizeof(exif_hdr);
 
-  if (exiv_buf != NULL) {
-    *exiv_buf = (uint8_t *) &exiv_hdr;
+  if (exif_buf != NULL) {
+    *exif_buf = (uint8_t *) &exif_hdr;
   }
 
-  return (uint8_t *) &exiv_hdr;
+  return (uint8_t *) &exif_hdr;
 }
 
 size_t get_jpeg_data_offset(camera_fb_t *fb)

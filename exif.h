@@ -44,12 +44,12 @@
  *
  * @param fb		Frame buffer of captured image. Encoding is expected to
  *                      be JPEG
- * @param exiv_buf	If not NULL, used to return pointer to Exif buffer in
- * @param exiv_buf	Used to return the size of the Exif buffer
+ * @param exif_buf	If not NULL, used to return pointer to Exif buffer in
+ * @param exif_buf	Used to return the size of the Exif buffer
  *
  * @returns		Pointer to Exif buffer, or NULL on error
  */
-const uint8_t *get_exiv_header(camera_fb_t *fb, const uint8_t **exiv_buf, size_t *exiv_len);
+const uint8_t *get_exif_header(camera_fb_t *fb, const uint8_t **exif_buf, size_t *exif_len);
 
 /**
  * Get offset of first none header byte in buffer

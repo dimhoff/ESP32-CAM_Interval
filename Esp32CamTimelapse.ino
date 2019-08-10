@@ -55,9 +55,6 @@
 # include "lwip/apps/sntp.h"
 #endif
 
-// Config parser
-#include "parse_kv_file.h"
-
 // Select camera model
 //#define CAMERA_MODEL_WROVER_KIT
 #define CAMERA_MODEL_AI_THINKER
@@ -67,6 +64,7 @@
 
 #include "camera_pins.h"
 
+#include "configuration.h"
 #include "exif.h"
 
 // Minimal unix time for clock to be considered valid.
@@ -75,36 +73,6 @@
 // Timelapse directory name format: /sdcard/timelapseXXXX/
 #define CAPTURE_DIR_PREFIX "timelapse"
 #define CAPTURE_DIR_PREFIX_LEN 9
-
-// Config
-#define CONFIG_PATH "/sdcard/camera.cfg"
-struct s_config {
-  unsigned int capture_interval;
-        /**< Microseconds between captures.
-         * Must be > 1000 if using timestamp filenames
-         */
-  bool enable_busy_led;
-        /* Enable LED when taking a picture to indicate device is busy. */
-  bool enable_flash;
-        /* Enable Flash LED when taking a picture */
-
-#ifdef WITH_WIFI
-  char ssid[65]; /**< WiFi ssid to connect to */
-  char password[65]; /**< WiFi Password */
-  char ntp_server[65]; /**< NTP server address */
-  char tzinfo[65]; /**< Timezone spec, see POSIX TZ(5) environment variable */
-#endif // WITH_WIFI
-} cfg = {
-  5000,
-  true,
-  false,
-#ifdef WITH_WIFI
-  "",
-  "",
-  "pool.ntp.org",
-  "GMT0",
-#endif // WITH_WIFI
-};
 
 // Globals
 static bool internet_connected = false;
@@ -137,13 +105,8 @@ void setup()
   
   // TODO: error log to file?
 
-  // camera init
-  if (!init_camera()) {
-    goto fail;
-  }
-  
   // Load config file
-  if (!init_config()) {
+  if (!cfg.loadConfig()) {
     goto fail;
   }
 
@@ -156,6 +119,11 @@ void setup()
 #endif // WITH_WIFI
 
   if (!init_capture_dir()) {
+    goto fail;
+  }
+
+  // camera init
+  if (!init_camera()) {
     goto fail;
   }
 
@@ -219,6 +187,154 @@ bool init_camera()
     return false;
   }
 
+  int res;
+  sensor_t *s = esp_camera_sensor_get();
+
+  // Set configuration
+  res = s->set_framesize(s, cfg.getFrameSize());
+  if (res != 0) {
+    Serial.printf("Unable to set 'frame size': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_quality(s, cfg.getQuality());
+  if (res != 0) {
+    Serial.printf("Unable to set 'quality': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_contrast(s, cfg.getContrast());
+  if (res != 0) {
+    Serial.printf("Unable to set 'contrast': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_brightness(s, cfg.getBrightness());
+  if (res != 0) {
+    Serial.printf("Unable to set 'brightness': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_saturation(s, cfg.getSaturation());
+  if (res != 0) {
+    Serial.printf("Unable to set 'saturation': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_colorbar(s, cfg.getColorBar());
+  if (res != 0) {
+    Serial.printf("Unable to set 'colorbar': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_hmirror(s, cfg.getHMirror());
+  if (res != 0) {
+    Serial.printf("Unable to set 'hmirror': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_vflip(s, cfg.getVFlip());
+  if (res != 0) {
+    Serial.printf("Unable to set 'vflip': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_whitebal(s, cfg.getAwb());
+  if (res != 0) {
+    Serial.printf("Unable to set 'whitebal': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_awb_gain(s, cfg.getAwbGain());
+  if (res != 0) {
+    Serial.printf("Unable to set 'awb_gain': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_wb_mode(s, cfg.getWhiteBalanceMode());
+  if (res != 0) {
+    Serial.printf("Unable to set 'wb_mode': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_gain_ctrl(s, cfg.getAgc());
+  if (res != 0) {
+    Serial.printf("Unable to set 'gain_ctrl': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_agc_gain(s, cfg.getAgcGain());
+  if (res != 0) {
+    Serial.printf("Unable to set 'agc_gain': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_gainceiling(s, cfg.getGainCeiling());
+  if (res != 0) {
+    Serial.printf("Unable to set 'gainceiling': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_exposure_ctrl(s, cfg.getAec());
+  if (res != 0) {
+    Serial.printf("Unable to set 'exposure_ctrl': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_aec_value(s, cfg.getExposureValue());
+  if (res != 0) {
+    Serial.printf("Unable to set 'aec_value': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_aec2(s, cfg.getAec2());
+  if (res != 0) {
+    Serial.printf("Unable to set 'aec2': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_ae_level(s, cfg.getAeLevel());
+  if (res != 0) {
+    Serial.printf("Unable to set 'ae_level': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_dcw(s, cfg.getDcw());
+  if (res != 0) {
+    Serial.printf("Unable to set 'dcw': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_bpc(s, cfg.getBlackPixelCancellation());
+  if (res != 0) {
+    Serial.printf("Unable to set 'bpc': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_wpc(s, cfg.getWhitePixelCancellation());
+  if (res != 0) {
+    Serial.printf("Unable to set 'wpc': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_raw_gma(s, cfg.getRawGamma());
+  if (res != 0) {
+    Serial.printf("Unable to set 'raw_gma': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_lenc(s, cfg.getLensCorrection());
+  if (res != 0) {
+    Serial.printf("Unable to set 'lenc': return code %d\n", res);
+    return false;
+  }
+
+  res = s->set_special_effect(s, cfg.getSpecialEffect());
+  if (res != 0) {
+    Serial.printf("Unable to set 'special_effect': return code %d\n", res);
+    return false;
+  }
+
   return true;
 }
 
@@ -229,12 +345,12 @@ bool init_camera()
 bool init_wifi()
 {
   // Return if no SSID configured
-  if (cfg.ssid[0] == '\0') {
+  if (cfg.getSsid()[0] == '\0') {
     return false;
   }
   
-  Serial.printf("Connecting to '%s': ", cfg.ssid);
-  WiFi.begin(cfg.ssid, cfg.password);
+  Serial.printf("Connecting to '%s': ", cfg.getSsid());
+  WiFi.begin(cfg.getSsid(), cfg.getPassword());
 
   // Wait for connection
   int connAttempts = 0;
@@ -258,7 +374,7 @@ void init_time()
 {
   Serial.print("Waiting for time to synchronize: ");
   
-  configTzTime(cfg.tzinfo, cfg.ntp_server);
+  configTzTime(cfg.getTzInfo(), cfg.getNtpServer());
 
   // wait for time to be set
   int retry = 0;
@@ -307,544 +423,6 @@ static bool init_sdcard()
     Serial.printf("Failed to mount SD card VFAT filesystem. Error: %s\n",
                      esp_err_to_name(ret));
     return false;
-  }
-
-  return true;
-}
-
-//TODO: move configuration parsing to seperate source file
-
-/**
- * Parse base-10 interger string
- *
- * @returns true on success, false on error
- */
-bool parse_int(const char *in, int *out)
-{
-  char *endp;
-    int tmp = strtol(in, &endp, 10);
-    if (endp == NULL) {
-      return false;
-    }
-    *out = tmp;
-    return true;
-}
-
-/**
- * Parse boolean string
- *
- * @returns true on success, false on error
- */
-bool parse_bool(const char *in, bool *out)
-{
-    if (strcasecmp(in, "true") == 0 ||
-        strcasecmp(in, "yes") == 0 ||
-        strcmp(in, "1") == 0) {
-      *out = true;
-    } else if (strcasecmp(in, "false") == 0 ||
-        strcasecmp(in, "no") == 0 ||
-        strcmp(in, "0") == 0) {
-      *out = false;
-    } else {
-      return false;
-    }
-
-    return true;
-}
-
-/**
- * Callback used by parse_kv_file() to set configuration options
- */
-int config_set(const char *key, const char *value)
-{
-  char *endp = NULL;
-
-  Serial.printf(" - '%s' => '%s'\n", key, value);
-  
-  if (strcasecmp(key, "interval") == 0) {
-    cfg.capture_interval = strtoul(value, &endp, 10);
-    if (endp == NULL) {
-      Serial.println("Value for 'interval' is not a valid integer number");
-      return -2;
-    }
-    if (cfg.capture_interval < 1000) {
-      // Date/Time filename format doesn't support intervals < 1 Second.
-      Serial.println("Capture interval to small, changing to 1 Sec.");
-      cfg.capture_interval = 1000;
-    }
-#ifdef WITH_WIFI
-  } else if (strcasecmp(key, "ssid") == 0) {
-    if (strlen(value) > sizeof(cfg.ssid) - 1) {
-      Serial.printf("Value of 'ssid' too long (>= %d byte)\n",
-                        sizeof(cfg.ssid));
-      return -2;
-    }
-    strcpy(cfg.ssid, value);
-  } else if (strcasecmp(key, "password") == 0) {
-    if (strlen(value) > sizeof(cfg.password) - 1) {
-      Serial.printf("Value of 'password' too long (>= %d byte)\n",
-                        sizeof(cfg.password));
-      return -2;
-    }
-    strcpy(cfg.password, value);
-  } else if (strcasecmp(key, "ntp_server") == 0) {
-    if (strlen(value) > sizeof(cfg.ntp_server) - 1) {
-      Serial.printf("Value of 'ntp_server' too long (>= %d byte)\n",
-                        sizeof(cfg.ntp_server));
-      return -2;
-    }
-    strcpy(cfg.ntp_server, value);
-  } else if (strcasecmp(key, "timezone") == 0) {
-    if (strlen(value) > sizeof(cfg.tzinfo) - 1) {
-      Serial.printf("Value of 'tzinfo' too long (>= %d byte)\n",
-                        sizeof(cfg.tzinfo));
-      return -2;
-    }
-    strcpy(cfg.tzinfo, value);
-#endif // WITH_WIFI
-  } else if (strcasecmp(key, "enable_busy_led") == 0) {
-    if (parse_bool(value, &(cfg.enable_busy_led)) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-  } else if (strcasecmp(key, "enable_flash") == 0) {
-    if (parse_bool(value, &(cfg.enable_flash)) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-  } else if(!strcasecmp(key, "framesize")) {
-    framesize_t val;
-
-    if (strcasecmp(value, "QQVGA") == 0 ||
-        strcasecmp(value, "160x120") == 0) {
-      val = FRAMESIZE_QQVGA;
-    } else if (strcasecmp(value, "QQVGA2") == 0 ||
-        strcasecmp(value, "128x160") == 0) {
-      val = FRAMESIZE_QQVGA2;
-    } else if (strcasecmp(value, "QCIF") == 0 ||
-        strcasecmp(value, "176x144") == 0) {
-      val = FRAMESIZE_QCIF;
-    } else if (strcasecmp(value, "HQVGA") == 0 ||
-        strcasecmp(value, "240x176") == 0) {
-      val = FRAMESIZE_HQVGA;
-    } else if (strcasecmp(value, "QVGA") == 0 ||
-        strcasecmp(value, "320x240") == 0) {
-      val = FRAMESIZE_QVGA;
-    } else if (strcasecmp(value, "CIF") == 0 ||
-        strcasecmp(value, "400x296") == 0) {
-      val = FRAMESIZE_CIF;
-    } else if (strcasecmp(value, "VGA") == 0 ||
-        strcasecmp(value, "640x480") == 0) {
-      val = FRAMESIZE_VGA;
-    } else if (strcasecmp(value, "SVGA") == 0 ||
-        strcasecmp(value, "800x600") == 0) {
-      val = FRAMESIZE_SVGA;
-    } else if (strcasecmp(value, "XGA") == 0 ||
-        strcasecmp(value, "1024x768") == 0) {
-      val = FRAMESIZE_XGA;
-    } else if (strcasecmp(value, "SXGA") == 0 ||
-        strcasecmp(value, "1280x1024") == 0) {
-      val = FRAMESIZE_SXGA;
-    } else if (strcasecmp(value, "UXGA") == 0 ||
-        strcasecmp(value, "1600x1200") == 0) {
-      val = FRAMESIZE_UXGA;
-    } else if (strcasecmp(value, "QXGA") == 0 ||
-        strcasecmp(value, "2048x1536") == 0) {
-      val = FRAMESIZE_QXGA; // OV3660 only
-    } else {
-      Serial.printf("Invalid value for '%s'\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_framesize(s, val);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "quality")) {
-    int int_value;
-    if (parse_int(value, &int_value) != true) {
-      Serial.printf("Value of '%s' is not a valid integer\n", key);
-      return -2;
-    }
-    if (int_value < 10 || int_value > 63) {
-      Serial.printf("Value of '%s' is out of range\n", key);
-      return -2;
-    }
-    
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_quality(s, int_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "contrast")) {
-    int int_value;
-    if (parse_int(value, &int_value) != true) {
-      Serial.printf("Value of '%s' is not a valid integer\n", key);
-      return -2;
-    }
-    if (int_value < -2 || int_value > 2) {
-      Serial.printf("Value of '%s' is out of range\n", key);
-      return -2;
-    }
-    
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_contrast(s, int_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "brightness")) {
-    int int_value;
-    if (parse_int(value, &int_value) != true) {
-      Serial.printf("Value of '%s' is not a valid integer\n", key);
-      return -2;
-    }
-    if (int_value < -2 || int_value > 2) {
-      Serial.printf("Value of '%s' is out of range\n", key);
-      return -2;
-    }
-    
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_brightness(s, int_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "saturation")) {
-    int int_value;
-    if (parse_int(value, &int_value) != true) {
-      Serial.printf("Value of '%s' is not a valid integer\n", key);
-      return -2;
-    }
-    if (int_value < -2 || int_value > 2) {
-      Serial.printf("Value of '%s' is out of range\n", key);
-      return -2;
-    }
-    
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_saturation(s, int_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "colorbar")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_colorbar(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "hmirror")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_hmirror(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "vflip")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_vflip(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "awb")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_whitebal(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "awb_gain")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_awb_gain(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "wb_mode")) {
-    int val = 0;
-    if (strcasecmp(value, "auto") == 0) {
-      val = 0;
-    } else if (strcasecmp(value, "sunny") == 0) {
-      val = 1;
-    } else if (strcasecmp(value, "cloudy") == 0) {
-      val = 2;
-    } else if (strcasecmp(value, "office") == 0) {
-      val = 3;
-    } else if (strcasecmp(value, "home") == 0) {
-      val = 4;
-    } else {
-      Serial.printf("Invalid value for '%s'\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_wb_mode(s, val);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "agc")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_gain_ctrl(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "agc_gain")) {
-    int int_value;
-    if (parse_int(value, &int_value) != true) {
-      Serial.printf("Value of '%s' is not a valid integer\n", key);
-      return -2;
-    }
-    if (int_value < 1 || int_value > 32) {
-      Serial.printf("Value of '%s' is out of range\n", key);
-      return -2;
-    }
-    
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_agc_gain(s, int_value - 1);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "gainceiling")) {
-    int int_value;
-    if (parse_int(value, &int_value) != true) {
-      Serial.printf("Value of '%s' is not a valid integer\n", key);
-      return -2;
-    }
-    if (int_value < 0 || int_value > 6) {
-      Serial.printf("Value of '%s' is out of range\n", key);
-      return -2;
-    }
-    
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_gainceiling(s, (gainceiling_t)int_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "aec")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_exposure_ctrl(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "aec_value")) {
-    int int_value;
-    if (parse_int(value, &int_value) != true) {
-      Serial.printf("Value of '%s' is not a valid integer\n", key);
-      return -2;
-    }
-    if (int_value < 0 || int_value > 1200) {
-      Serial.printf("Value of '%s' is out of range\n", key);
-      return -2;
-    }
-    
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_aec_value(s, int_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "aec2")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_aec2(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "ae_level")) {
-    int int_value;
-    if (parse_int(value, &int_value) != true) {
-      Serial.printf("Value of '%s' is not a valid integer\n", key);
-      return -2;
-    }
-    if (int_value < -2 || int_value > 2) {
-      Serial.printf("Value of '%s' is out of range\n", key);
-      return -2;
-    }
-    
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_ae_level(s, int_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "dcw")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_dcw(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "bpc")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_bpc(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "wpc")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_wpc(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "raw_gma")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_raw_gma(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "lenc")) {
-    bool bool_value;
-    if (parse_bool(value, &bool_value) != true) {
-      Serial.printf("Value of '%s' is not a valid boolean\n", key);
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_lenc(s, bool_value);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else if(!strcasecmp(key, "special_effect")) {
-    int val = 0;
-    if (strcasecmp(value, "none") == 0) {
-      val = 0;
-    } else if (strcasecmp(value, "negative") == 0) {
-      val = 1;
-    } else if (strcasecmp(value, "grayscale") == 0) {
-      val = 2;
-    } else if (strcasecmp(value, "red tint") == 0) {
-      val = 3;
-    } else if (strcasecmp(value, "green tint") == 0) {
-      val = 4;
-    } else if (strcasecmp(value, "blue tint") == 0) {
-      val = 5;
-    } else if (strcasecmp(value, "sepia") == 0) {
-      val = 6;
-    } else {
-      Serial.println("Invalid value for 'special_effect'");
-      return -2;
-    }
-
-    sensor_t * s = esp_camera_sensor_get();
-    int res = s->set_special_effect(s, val);
-    if (res != 0) {
-      Serial.printf("Unable to set '%s': return code %d\n", key, res);
-      return res;
-    }
-  } else {
-    Serial.printf("Unknown key '%s', ignoring", key);
-  }
-  
-  return 0;
-}
-
-/**
- * Load configuration file
- */
-static bool init_config()
-{
-  FILE *file = fopen(CONFIG_PATH, "r");
-  if (file != NULL)  {
-    Serial.println("Loading config... ");
-    
-    int err = parse_kv_file(file, &config_set);
-
-    fclose(file);
-
-    if (err != 0) {
-      Serial.printf("Failed to parse configuration, Error %d\n", err);
-      return false;
-    } else {
-      Serial.println("Config loaded.");
-    }
-  } else {
-    Serial.println("No config found, using defaults.");
   }
 
   return true;
@@ -914,10 +492,10 @@ static bool init_capture_dir()
  */
 static void save_photo()
 {
-  if (cfg.enable_busy_led) {
+  if (cfg.getEnableBusyLed()) {
     digitalWrite(LED_GPIO_NUM, LOW);
   }
-  if (cfg.enable_flash) {
+  if (cfg.getEnableFlash()) {
     digitalWrite(FLASH_GPIO_NUM, HIGH);
   }
 
@@ -969,10 +547,10 @@ static void save_photo()
   }
   esp_camera_fb_return(fb);
   
-  if (cfg.enable_flash) {
+  if (cfg.getEnableFlash()) {
     digitalWrite(FLASH_GPIO_NUM, LOW);
   }
-  if (cfg.enable_busy_led) {
+  if (cfg.getEnableBusyLed()) {
     digitalWrite(LED_GPIO_NUM, HIGH);
   }
 }
@@ -983,7 +561,7 @@ void loop()
   static long last_capture_millis = 0;
 
   current_millis = millis();
-  if (current_millis - last_capture_millis > cfg.capture_interval) {
+  if (current_millis - last_capture_millis > cfg.getCaptureInterval()) {
     // Take another picture
     last_capture_millis = current_millis;
     save_photo();

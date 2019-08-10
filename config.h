@@ -9,4 +9,7 @@
 // to SD DATA1 line.
 //#define WITH_SD_4BIT
 
+// Version number of firmware
+#define VERSION_STR "0.1"
+
 #endif // __CONFIG_H__

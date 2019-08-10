@@ -67,6 +67,8 @@
 
 #include "camera_pins.h"
 
+#include "exif.h"
+
 // Minimal unix time for clock to be considered valid.
 #define NOT_BEFORE_TIME 1564437734
 
@@ -934,10 +936,28 @@ static void save_photo()
   strftime(&filename[capture_path_len], sizeof(filename) - capture_path_len,
              "/%Y%m%d_%H%M%S.jpg", &timeinfo);
 
+  // Generate Exif header
+  const uint8_t *exif_header = NULL;
+  size_t exif_len = 0;
+  get_exiv_header(fb, &exif_header, &exif_len);
+
+  size_t data_offset = get_jpeg_data_offset(fb);
+
   // Save picture
   FILE *file = fopen(filename, "w");
   if (file != NULL)  {
-    size_t ret = fwrite(fb->buf, fb->len, 1, file);
+    size_t ret = 0;
+    if (exif_header != NULL) {
+      ret = fwrite(exif_header, exif_len, 1, file);
+      if (ret != 1) {
+        Serial.println("Failed\nError while writing header to file");
+        data_offset = 0;
+      }
+    } else {
+        data_offset = 0;
+    }
+
+    ret = fwrite(&fb->buf[data_offset], fb->len - data_offset, 1, file);
     if (ret != 1) {
       Serial.println("Failed\nError while writing to file");
     } else {

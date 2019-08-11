@@ -95,7 +95,6 @@ int Configuration::config_set(const char *key, const char *value)
       Serial.println("Capture interval to small, changing to 1 Sec.");
       m_capture_interval = 1000;
     }
-#ifdef WITH_WIFI
   } else if (strcasecmp(key, "ssid") == 0) {
     if (strlen(value) > sizeof(m_ssid) - 1) {
       Serial.printf("Value of 'ssid' too long (>= %d byte)\n",
@@ -124,7 +123,24 @@ int Configuration::config_set(const char *key, const char *value)
       return -2;
     }
     strcpy(m_tzinfo, value);
-#endif // WITH_WIFI
+  } else if (strcasecmp(key, "rotation") == 0) {
+    int int_value;
+    if (parse_int(value, &int_value) != true) {
+      Serial.printf("Value of '%s' is not a valid integer\n", key);
+      return -2;
+    }
+    if (int_value == 0) { // 0 deg. rotation
+      m_orientation = 1;
+    } else if (int_value == 90 || int_value == -270) { // 90° CW / 270° CCW
+      m_orientation = 6;
+    } else if (int_value == 180 || int_value == -180) { // 180° CW/CCW
+      m_orientation = 3;
+    } else if (int_value == 270 || int_value == -90) { // 270° CW / 90° CCW
+      m_orientation = 8;
+    } else {
+      Serial.printf("Value of '%s' is out of range\n", key);
+      return -2;
+    }
   } else if (strcasecmp(key, "enable_busy_led") == 0) {
     if (parse_bool(value, &(m_enable_busy_led)) != true) {
       Serial.printf("Value of '%s' is not a valid boolean\n", key);
@@ -367,7 +383,7 @@ int Configuration::config_set(const char *key, const char *value)
       return -2;
     }
   } else {
-    Serial.printf("Unknown key '%s', ignoring", key);
+    Serial.printf("Unknown key '%s', ignoring\n", key);
   }
 
   return 0;

@@ -31,6 +31,17 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "esp_camera.h"
+#include "configuration.h"
+
+/**
+ * Update the configurable EXIF header fields
+ *
+ * Update all field in the EXIF header that depend on the configuration. Needs
+ * to be called every time the configuration is changed.
+ *
+ * @returns	True on success, else false
+ */
+bool update_exif_from_cfg(const Configuration &c);
 
 /**
  * Get Exif header

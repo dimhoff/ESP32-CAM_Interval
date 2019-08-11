@@ -61,6 +61,7 @@ public:
     m_password(""),
     m_ntp_server("pool.ntp.org"),
     m_tzinfo("GMT0"),
+    m_orientation(1),
     m_frame_size(FRAMESIZE_UXGA),
     m_quality(10),
     m_contrast(0),
@@ -97,6 +98,8 @@ public:
   const char *getPassword() { return m_password; }
   const char *getNtpServer() { return m_ntp_server; }
   const char *getTzInfo() { return m_tzinfo; }
+
+  uint8_t getOrientation() const { return m_orientation; }
 
   const framesize_t& getFrameSize() { return m_frame_size; }
   const int8_t& getQuality() { return m_quality; }
@@ -144,6 +147,9 @@ private:
   char m_password[65]; /**< WiFi Password */
   char m_ntp_server[65]; /**< NTP server address */
   char m_tzinfo[65]; /**< Timezone spec, see POSIX TZ(5) environment variable */
+
+  // Exiv options
+  uint8_t m_orientation;
 
   // Camera options
   framesize_t m_frame_size;

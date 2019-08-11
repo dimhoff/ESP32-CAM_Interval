@@ -170,6 +170,7 @@ struct JpegExifHdr {
           TiffTypeAscii,
           sizeof(exif_hdr.tiff_data.ifd0_data.model),
           IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd0_data.model) },
+#define TAG_IFD0_ORIENTATION_IDX 2
         { TagTiffOrientation,
           TiffTypeShort, 1,
           IFD_SET_SHORT(1) },
@@ -236,6 +237,13 @@ struct JpegExifHdr {
   }
 };
 #pragma pack()
+
+bool update_exif_from_cfg(const Configuration &c)
+{
+  exif_hdr.tiff_data.ifd0.entries[TAG_IFD0_ORIENTATION_IDX].value = IFD_SET_SHORT(c.getOrientation());
+
+  return true;
+}
 
 const uint8_t *get_exif_header(camera_fb_t *fb, const uint8_t **exif_buf, size_t *exif_len)
 {

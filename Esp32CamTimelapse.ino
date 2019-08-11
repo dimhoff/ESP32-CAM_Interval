@@ -109,6 +109,7 @@ void setup()
   if (!cfg.loadConfig()) {
     goto fail;
   }
+  update_exif_from_cfg(cfg);
 
   // Init WiFi
 #ifdef WITH_WIFI

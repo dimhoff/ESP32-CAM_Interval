@@ -1,4 +1,4 @@
-Esp32-Cam Interval
+ESP32-CAM Interval
 ==================
 This firmware turns a Esp32-Cam module into a time-lapse camera, with
 geo-tagging support. Taking pictures at a set interval, tagging them with the

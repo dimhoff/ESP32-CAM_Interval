@@ -1,5 +1,5 @@
 /**
- * Esp32CamTimelapse.c - Capture pictures to SD card at set interval.
+ * ESP32-CAM_Interval.ino - Capture pictures to SD card at set interval.
  *
  * Based on the code from https://robotzero.one/time-lapse-esp32-cameras/
  * Original Copyright: Copyright (c) 2019, Robot Zero One

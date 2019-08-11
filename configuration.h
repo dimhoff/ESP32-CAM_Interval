@@ -110,10 +110,10 @@ public:
   const bool& getAwbGain() { return m_awb_gain; }
   const WbMode& getWhiteBalanceMode() { return m_wb_mode; }
   const bool& getAgc() { return m_agc; }
-  const int& getAgcGain() { return m_agc_gain; }
+  const uint8_t& getAgcGain() { return m_agc_gain; }
   const gainceiling_t& getGainCeiling() { return m_gainceiling; }
   const bool& getAec() { return m_aec; }
-  const int& getExposureValue() { return m_aec_value; }
+  const uint16_t& getExposureValue() { return m_aec_value; }
   const bool& getAec2() { return m_aec2; }
   const int8_t& getAeLevel() { return m_ae_level; }
   const bool& getDcw() { return m_dcw; }
@@ -158,10 +158,10 @@ private:
   bool m_awb_gain;
   WbMode m_wb_mode;
   bool m_agc;
-  int m_agc_gain;
+  uint8_t m_agc_gain;
   gainceiling_t m_gainceiling;
   bool m_aec;
-  int m_aec_value;
+  uint16_t m_aec_value;
   bool m_aec2;
   int8_t m_ae_level;
   bool m_dcw;

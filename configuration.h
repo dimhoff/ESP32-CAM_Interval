@@ -90,41 +90,41 @@ public:
 
   bool loadConfig();
 
-  unsigned int getCaptureInterval() { return m_capture_interval; }
-  bool getEnableBusyLed() { return m_enable_busy_led; }
-  bool getEnableFlash() { return m_enable_flash; }
+  unsigned int getCaptureInterval() const { return m_capture_interval; }
+  bool getEnableBusyLed() const { return m_enable_busy_led; }
+  bool getEnableFlash() const { return m_enable_flash; }
 
-  const char *getSsid() { return m_ssid; }
-  const char *getPassword() { return m_password; }
-  const char *getNtpServer() { return m_ntp_server; }
-  const char *getTzInfo() { return m_tzinfo; }
+  const char *getSsid() const { return m_ssid; }
+  const char *getPassword() const { return m_password; }
+  const char *getNtpServer() const { return m_ntp_server; }
+  const char *getTzInfo() const { return m_tzinfo; }
 
   uint8_t getOrientation() const { return m_orientation; }
 
-  const framesize_t& getFrameSize() { return m_frame_size; }
-  const int8_t& getQuality() { return m_quality; }
-  const int8_t& getContrast() { return m_contrast; }
-  const int8_t& getBrightness() { return m_brightness; }
-  const int8_t& getSaturation() { return m_saturation; }
-  const bool& getColorBar() { return m_colorbar; }
-  const bool& getHMirror() { return m_hmirror; }
-  const bool& getVFlip() { return m_vflip; }
-  const bool& getAwb() { return m_awb; }
-  const bool& getAwbGain() { return m_awb_gain; }
-  const WbMode& getWhiteBalanceMode() { return m_wb_mode; }
-  const bool& getAgc() { return m_agc; }
-  const uint8_t& getAgcGain() { return m_agc_gain; }
-  const gainceiling_t& getGainCeiling() { return m_gainceiling; }
-  const bool& getAec() { return m_aec; }
-  const uint16_t& getExposureValue() { return m_aec_value; }
-  const bool& getAec2() { return m_aec2; }
-  const int8_t& getAeLevel() { return m_ae_level; }
-  const bool& getDcw() { return m_dcw; }
-  const bool& getBlackPixelCancellation() { return m_bpc; }
-  const bool& getWhitePixelCancellation() { return m_wpc; }
-  const bool& getRawGamma() { return m_raw_gma; }
-  const bool& getLensCorrection() { return m_lenc; }
-  const SpecialEffect& getSpecialEffect() { return m_special_effect; }
+  framesize_t getFrameSize() const { return m_frame_size; }
+  int8_t getQuality() const { return m_quality; }
+  int8_t getContrast() const { return m_contrast; }
+  int8_t getBrightness() const { return m_brightness; }
+  int8_t getSaturation() const { return m_saturation; }
+  bool getColorBar() const { return m_colorbar; }
+  bool getHMirror() const { return m_hmirror; }
+  bool getVFlip() const { return m_vflip; }
+  bool getAwb() const { return m_awb; }
+  bool getAwbGain() const { return m_awb_gain; }
+  WbMode getWhiteBalanceMode() const { return m_wb_mode; }
+  bool getAgc() const { return m_agc; }
+  uint8_t getAgcGain() const { return m_agc_gain; }
+  gainceiling_t getGainCeiling() const { return m_gainceiling; }
+  bool getAec() const { return m_aec; }
+  uint16_t getExposureValue() const { return m_aec_value; }
+  bool getAec2() const { return m_aec2; }
+  int8_t getAeLevel() const { return m_ae_level; }
+  bool getDcw() const { return m_dcw; }
+  bool getBlackPixelCancellation() const { return m_bpc; }
+  bool getWhitePixelCancellation() const { return m_wpc; }
+  bool getRawGamma() const { return m_raw_gma; }
+  bool getLensCorrection() const { return m_lenc; }
+  SpecialEffect getSpecialEffect() const { return m_special_effect; }
 
   /**
    * Callback used by parse_kv_file() to set configuration options

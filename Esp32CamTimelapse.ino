@@ -37,6 +37,7 @@
 #include <time.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <sys/types.h>
 
 // MicroSD
@@ -53,7 +54,12 @@
 // SNTP
 # include "lwip/err.h"
 # include "lwip/apps/sntp.h"
-#endif
+#endif // WITH_WIFI
+
+// GNSS
+#ifdef WITH_GNSS
+# include <MicroNMEA.h>
+#endif // WITH_GNSS
 
 // Select camera model
 //#define CAMERA_MODEL_WROVER_KIT
@@ -61,6 +67,9 @@
 
 #define LED_GPIO_NUM 33
 #define FLASH_GPIO_NUM 4
+
+#define GPS_NMEA_TIMEOUT_MS (15L * 1000L)
+#define GPS_DATETIME_TIMEOUT_MS (120L * 1000L)
 
 #include "camera_pins.h"
 
@@ -75,12 +84,17 @@
 #define CAPTURE_DIR_PREFIX_LEN 9
 
 // Globals
-static bool internet_connected = false;
 static char capture_path[8 + CAPTURE_DIR_PREFIX_LEN + 4 + 1];
+#ifdef WITH_GNSS
+char nmeaBuffer[255];
+MicroNMEA nmea(nmeaBuffer, sizeof(nmeaBuffer));
+#endif // WITH_GNSS
 
 /************************ Initialization ************************/
 void setup()
 {
+  bool time_set = false;
+
   Serial.begin(115200);
   Serial.println();
 
@@ -111,13 +125,23 @@ void setup()
   }
   update_exif_from_cfg(cfg);
 
-  // Init WiFi
+  // Get current Time
+#ifdef WITH_GNSS
+  time_set = init_time_gnss();
+#endif // WITH_GNSS
 #ifdef WITH_WIFI
-  if (init_wifi()) { // Connected to WiFi
-    internet_connected = true;
-    init_time();
+  if (!time_set) {
+    if (init_wifi()) {
+      time_set = init_time_ntp();
+    }
   }
 #endif // WITH_WIFI
+  if (time_set) {
+    time_t now = time(NULL);
+    Serial.printf("Current time: %s", ctime(&now));
+  } else {
+    Serial.println("Failed to determine current date/time\n");
+  }
 
   if (!init_capture_dir()) {
     goto fail;
@@ -370,10 +394,12 @@ bool init_wifi()
 
 /**
  * Start NTP time synchronization
+ *
+ * @returns True on succes, false on failure
  */
-void init_time()
+bool init_time_ntp()
 {
-  Serial.print("Waiting for time to synchronize: ");
+  Serial.print("Waiting for time to synchronize with NTP: ");
   
   configTzTime(cfg.getTzInfo(), cfg.getNtpServer());
 
@@ -386,14 +412,98 @@ void init_time()
     (void) time(&now);
   }
   
-  if (now > NOT_BEFORE_TIME) {
-    Serial.println("Done");
-    Serial.printf("Current time: %s", ctime(&now));
-  } else {
+  if (now < NOT_BEFORE_TIME) {
     Serial.println("Timeout, continue in background");
+    return false;
   }
+
+  Serial.println("Done");
+
+  return true;
 }
 #endif // WITH_WIFI
+
+#ifdef WITH_GNSS
+/**
+ * Get time from GNSS
+ *
+ * @returns True on succes, false on failure
+ */
+bool init_time_gnss()
+{
+  Serial.print("Waiting for time from GNSS: ");
+
+  long start_millis;
+
+  // Wait for some NMEA to be recognized
+  start_millis = millis();
+  while (millis() - start_millis < GPS_NMEA_TIMEOUT_MS) {
+    while (Serial.available()) {
+      char c = Serial.read();
+      nmea.process(c);
+    }
+
+    // check if there is atleast some nmea
+    if (nmea.getNavSystem()) {
+      break;
+    }
+  }
+  if (!nmea.getNavSystem()) {
+    Serial.println("Failed, No NMEA data received");
+    return false;
+  }
+
+  // Wait for a valid date/time
+  bool have_time = false;
+  start_millis = millis();
+  while (millis() - start_millis < GPS_DATETIME_TIMEOUT_MS) {
+    if (nmea.getYear() > 2018 && nmea.getYear() < 2038 ) {
+      // NOTE: MTK33xx GPS starts at 2080, so also have an upper limit. By 2038
+      // the time_t will probably overflow... so use that as limit.
+      have_time = true;
+      break;
+    }
+
+    while (Serial.available()) {
+      char c = Serial.read();
+      nmea.process(c);
+    }
+  }
+
+  if (!have_time) {
+    Serial.println("Failed, unable to get valid date from GPS");
+    return false;
+  }
+
+  // Construct time
+  struct tm tm;
+  tm.tm_year = nmea.getYear() - 1900;
+  tm.tm_mon = nmea.getMonth() - 1;
+  tm.tm_mday = nmea.getDay();
+  tm.tm_hour = nmea.getHour();
+  tm.tm_min = nmea.getMinute();
+  tm.tm_sec = nmea.getSecond();
+  time_t t = mktime(&tm);
+  if (t == (time_t) -1) {
+    Serial.println("Failed, time could not be converted");
+    return false;
+  }
+
+  // Set time
+  struct timeval now = { t, 0 };
+  if (settimeofday(&now, NULL) != 0) {
+    Serial.println("Failed, unable to set time");
+    return false;
+  }
+
+  setenv("TZ", cfg.getTzInfo(), 1);
+  tzset();
+
+  Serial.println("Done");
+
+  return true;
+}
+#endif // WITH_GNSS
 
 /**
  * Mount SD Card
@@ -523,6 +633,9 @@ static void save_photo()
   // Generate Exif header
   const uint8_t *exif_header = NULL;
   size_t exif_len = 0;
+#ifdef WITH_GNSS
+  update_exif_gps(nmea);
+#endif
   get_exif_header(fb, &exif_header, &exif_len);
 
   size_t data_offset = get_jpeg_data_offset(fb);
@@ -563,10 +676,18 @@ void loop()
   static long current_millis;
   static long last_capture_millis = 0;
 
+  // Take picture if interval passed
   current_millis = millis();
   if (current_millis - last_capture_millis > cfg.getCaptureInterval()) {
-    // Take another picture
     last_capture_millis = current_millis;
     save_photo();
   }
+
+  // Process Serial input
+#ifdef WITH_GNSS
+  while (Serial.available()) {
+    char c = Serial.read();
+    nmea.process(c);
+  }
+#endif //WITH_GNSS
 }

@@ -101,10 +101,17 @@ typedef struct {
 #endif // __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
 
 // Amount of entries in the 0th IFD
-#define IFD0_ENTRY_CNT 10
+#ifdef WITH_GNSS
+# define IFD0_ENTRY_CNT 11
+#else
+# define IFD0_ENTRY_CNT 12
+#endif
 
 // Amount of entries in the Exif private IFD
 #define IFD_EXIF_ENTRY_CNT 6
+
+// Amount of entries in the GPS private IFD
+#define IFD_GPS_ENTRY_CNT 12
 
 // Camera maker string
 #define CAMERA_MAKE "OmniVision"
@@ -114,6 +121,9 @@ typedef struct {
 
 // Camera Software string
 #define CAMERA_SOFTWARE "ESP32-CAM Interval v" VERSION_STR
+
+// GPS map datum, probably always 'WGS-84'
+#define GPS_MAP_DATUM "WGS-84"
 
 /**
  * New Jpeg/Exif header
@@ -151,6 +161,22 @@ struct JpegExifHdr {
       IfdEntry entries[IFD_EXIF_ENTRY_CNT];
       uint32_t next_ifd; // Offset of next IFD, or 0x0 if last IFD
     } ifd_exif;
+#ifdef WITH_GNSS
+    struct {
+      uint16_t cnt; // amount of entries
+      IfdEntry entries[IFD_GPS_ENTRY_CNT];
+      uint32_t next_ifd; // Offset of next IFD, or 0x0 if last IFD
+    } ifd_gps;
+    struct {
+      TiffRational latitude[3];
+      TiffRational longitude[3];
+      TiffRational altitude;
+      TiffRational time_stamp[3];
+      char map_datum[sizeof(GPS_MAP_DATUM)];
+      uint8_t processing_method[8 + 3];
+      char date_stamp[11];
+    } ifd_gps_data;
+#endif //WITH_GNSS
   } tiff_data;
 } exif_hdr = {
   htons_macro(0xffd8),
@@ -197,6 +223,11 @@ struct JpegExifHdr {
         { TagTiffExifIFD,
           TiffTypeLong, 1,
           IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd_exif) },
+#ifdef WITH_GNSS
+        { TagTiffGPSIFD,
+          TiffTypeLong, 1,
+          IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd_gps) },
+#endif // WITH_GNSS
       },
       .next_ifd = 0
     },
@@ -233,7 +264,71 @@ struct JpegExifHdr {
           IFD_SET_SHORT(1200) },
       },
       .next_ifd = 0
+    },
+#ifdef WITH_GNSS
+    .ifd_gps = {
+      .cnt = IFD_GPS_ENTRY_CNT,
+      .entries = {
+        { TagGPSVersionID,
+          TiffTypeByte, 4,
+          IFD_SET_UNDEF(2, 3, 0, 0) },
+#define TAG_GPS_LATITUDE_REF_IDX 1
+        { TagGPSLatitudeRef,
+          TiffTypeAscii, 2,
+          IFD_SET_UNDEF(0x00, 0x00, 0x00, 0x00) },
+        { TagGPSLatitude,
+          TiffTypeRational, 3,
+          IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd_gps_data.latitude) },
+#define TAG_GPS_LONGITUDE_REF_IDX 3
+        { TagGPSLongitudeRef,
+          TiffTypeAscii, 2,
+          IFD_SET_UNDEF(0x00, 0x00, 0x00, 0x00) },
+        { TagGPSLongitude,
+          TiffTypeRational, 3,
+          IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd_gps_data.longitude) },
+#define TAG_GPS_ALTITUDE_REF_IDX 5
+        { TagGPSAltitudeRef,
+          TiffTypeByte, 1,
+          IFD_SET_UNDEF(0x00, 0x00, 0x00, 0x00) },
+        { TagGPSAltitude,
+          TiffTypeRational, 1,
+          IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd_gps_data.altitude) },
+        { TagGPSTimeStamp,
+          TiffTypeRational, 3,
+          IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd_gps_data.time_stamp) },
+#define TAG_GPS_STATUS_IDX 8
+        { TagGPSStatus,
+          TiffTypeAscii, 2,
+          IFD_SET_UNDEF('V', 0x00, 0x00, 0x00) },
+/*TODO: currently not available from MicroNMEA
+        { TagGPSMeasureMode,
+          TiffTypeAscii, 2,
+          IFD_SET_UNDEF('2', 0x00, 0x00, 0x00) },*/
+        { TagGPSMapDatum,
+          TiffTypeAscii,
+          sizeof(exif_hdr.tiff_data.ifd_gps_data.map_datum),
+          IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd_gps_data.map_datum) },
+        { TagGPSProcessingMethod,
+          TiffTypeUndef,
+          sizeof(exif_hdr.tiff_data.ifd_gps_data.processing_method),
+          IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd_gps_data.processing_method) },
+        { TagGPSDateStamp,
+          TiffTypeAscii,
+          sizeof(exif_hdr.tiff_data.ifd_gps_data.date_stamp),
+          IFD_SET_OFFSET(JpegExifHdr::TiffData, ifd_gps_data.date_stamp) },
+      },
+      .next_ifd = 0
+    },
+    .ifd_gps_data = {
+      { { 0, 1000*1000 }, { 0, 1 }, { 0, 1 } },
+      { { 0, 1000*1000 }, { 0, 1 }, { 0, 1 } },
+      { 0, 1000 },
+      { { 0, 1 }, { 0, 1 }, { 0, 1 } },
+      GPS_MAP_DATUM,
+      { 0x41, 0x53, 0x43, 0x49, 0x49, 0x00, 0x00, 0x00, 'G', 'P', 'S' },
+      "    :  :  ",
     }
+#endif // WITH_GNSS
   }
 };
 #pragma pack()
@@ -244,6 +339,65 @@ bool update_exif_from_cfg(const Configuration &c)
 
   return true;
 }
+
+#ifdef WITH_GNSS
+void update_exif_gps(const MicroNMEA& nmea)
+{
+  // Latitude
+  long lat = nmea.getLatitude();
+  if (lat < 0) {
+    exif_hdr.tiff_data.ifd_gps.entries[TAG_GPS_LATITUDE_REF_IDX].value = IFD_SET_BYTE('S');
+    lat *= -1;
+  } else {
+    exif_hdr.tiff_data.ifd_gps.entries[TAG_GPS_LATITUDE_REF_IDX].value = IFD_SET_BYTE('N');
+  }
+  exif_hdr.tiff_data.ifd_gps_data.latitude[0].num = lat;
+
+  // Longitude
+  long lon = nmea.getLongitude();
+  if (lon < 0) {
+    exif_hdr.tiff_data.ifd_gps.entries[TAG_GPS_LONGITUDE_REF_IDX].value = IFD_SET_BYTE('W');
+    lon *= -1;
+  } else {
+    exif_hdr.tiff_data.ifd_gps.entries[TAG_GPS_LONGITUDE_REF_IDX].value = IFD_SET_BYTE('E');
+  }
+  exif_hdr.tiff_data.ifd_gps_data.longitude[0].num = lon;
+
+  // Altitude
+  long alt;
+  if (nmea.getAltitude(alt)) {
+    if (alt < 0) {
+      exif_hdr.tiff_data.ifd_gps.entries[TAG_GPS_ALTITUDE_REF_IDX].value = IFD_SET_BYTE(1);
+      alt *= -1;
+    } else {
+      exif_hdr.tiff_data.ifd_gps.entries[TAG_GPS_ALTITUDE_REF_IDX].value = IFD_SET_BYTE(0);
+    }
+    exif_hdr.tiff_data.ifd_gps_data.altitude.num = alt;
+  } else {
+    exif_hdr.tiff_data.ifd_gps_data.altitude.num = 0;
+  }
+
+  // time stamp
+  exif_hdr.tiff_data.ifd_gps_data.time_stamp[0].num = nmea.getHour();
+  exif_hdr.tiff_data.ifd_gps_data.time_stamp[1].num = nmea.getMinute();
+  exif_hdr.tiff_data.ifd_gps_data.time_stamp[2].num = nmea.getSecond();
+
+  // GPS Status
+  if (nmea.isValid()) {
+    exif_hdr.tiff_data.ifd_gps.entries[TAG_GPS_STATUS_IDX].value = IFD_SET_BYTE('A');
+  } else {
+    exif_hdr.tiff_data.ifd_gps.entries[TAG_GPS_STATUS_IDX].value = IFD_SET_BYTE('V');
+  }
+
+  // date stamp
+  snprintf(exif_hdr.tiff_data.ifd_gps_data.date_stamp,
+      sizeof(exif_hdr.tiff_data.ifd_gps_data.date_stamp),
+      "%04u:%02u:%02u",
+      nmea.getYear(),
+      nmea.getMonth(),
+      nmea.getDay());
+}
+#endif // WITH_GNSS
 
 const uint8_t *get_exif_header(camera_fb_t *fb, const uint8_t **exif_buf, size_t *exif_len)
 {

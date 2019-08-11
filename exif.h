@@ -32,6 +32,9 @@
 #include <stddef.h>
 #include "esp_camera.h"
 #include "configuration.h"
+#ifdef WITH_GNSS
+# include <MicroNMEA.h>
+#endif
 
 /**
  * Update the configurable EXIF header fields
@@ -42,6 +45,15 @@
  * @returns	True on success, else false
  */
 bool update_exif_from_cfg(const Configuration &c);
+
+#ifdef WITH_GNSS
+/**
+ * Update GPS data in EXIF header
+ *
+ * Should be called for every call to get_exif_header() if GNSS support is enabled.
+ */
+void update_exif_gps(const MicroNMEA& nmea);
+#endif // WITH_GNSS
 
 /**
  * Get Exif header

@@ -40,6 +40,9 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+// GPIO (rtc_gpio_hold_en())
+#include "driver/rtc_io.h"
+
 // MicroSD
 #include "driver/sdmmc_host.h"
 #include "driver/sdmmc_defs.h"
@@ -61,12 +64,23 @@
 # include <MicroNMEA.h>
 #endif // WITH_GNSS
 
+// Time unit defines
+#define MSEC_AS_USEC (1000L)
+#define SEC_AS_USEC (1000L * MSEC_AS_USEC)
+
 // Select camera model
 //#define CAMERA_MODEL_WROVER_KIT
 #define CAMERA_MODEL_AI_THINKER
 
 #define LED_GPIO_NUM 33
 #define FLASH_GPIO_NUM 4
+#define CAM_PWR_GPIO_NUM 32
+
+// Minimum sleep time.
+// If next capture is less then this many micro seconds away, then stay awake.
+#define MIN_SLEEP_TIME (1 * SEC_AS_USEC)
+// Wake-up this many micro seconds before capture time to allow initialization.
+#define WAKE_USEC_EARLY (6 * SEC_AS_USEC)
 
 #define GPS_NMEA_TIMEOUT_MS (15L * 1000L)
 #define GPS_DATETIME_TIMEOUT_MS (120L * 1000L)
@@ -95,6 +109,11 @@ MicroNMEA nmea(nmeaBuffer, sizeof(nmeaBuffer));
 void setup()
 {
   bool time_set = false;
+  bool is_wakeup = false;
+
+  if (esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_UNDEFINED) {
+    is_wakeup = true;
+  }
 
   Serial.begin(115200);
   Serial.println();
@@ -112,11 +131,17 @@ void setup()
   // This will dimly light up the flash LED.
   pinMode(FLASH_GPIO_NUM, OUTPUT);
   digitalWrite(FLASH_GPIO_NUM, LOW);
+  rtc_gpio_hold_en(GPIO_NUM_4);
 #endif //!defined(WITH_SD_4BIT) && defined(CAMERA_MODEL_AI_THINKER)
   
   // Configure red LED
   pinMode(LED_GPIO_NUM, OUTPUT);
   digitalWrite(LED_GPIO_NUM, HIGH);
+
+  // Enable camera power
+  pinMode(CAM_PWR_GPIO_NUM, OUTPUT);
+  digitalWrite(CAM_PWR_GPIO_NUM, LOW);
+  rtc_gpio_hold_en(GPIO_NUM_32);
   
   // TODO: error log to file?
 
@@ -146,7 +171,7 @@ void setup()
     Serial.println("Failed to determine current date/time\n");
   }
 
-  if (!init_capture_dir()) {
+  if (!init_capture_dir(is_wakeup)) {
     goto fail;
   }
 
@@ -453,6 +478,8 @@ bool init_time_gnss()
   }
   if (!nmea.getNavSystem()) {
     Serial.println("Failed, No NMEA data received");
+    // TODO: maybe preserve this information across deep sleeps, so that GNSS
+    // isn't tryed after deep sleep if no GNSS receiver is available.
     return false;
   }
 
@@ -545,11 +572,11 @@ static bool init_sdcard()
 /**
  * Create new directory to store images
  */
-static bool init_capture_dir()
+static bool init_capture_dir(bool reuse_last_dir)
 {
   DIR *dirp;
   struct dirent *dp;
-  int max_idx = 0;
+  int dir_idx = 0;
 
   // Find unused directory name
   if ((dirp = opendir("/sdcard/")) == NULL) {
@@ -571,8 +598,8 @@ static bool init_capture_dir()
       if (*endp != '\0')
         continue;
 
-      if (idx > max_idx) {
-        max_idx = idx;
+      if (idx > dir_idx) {
+        dir_idx = idx;
       }
     }
   } while (dp != NULL);
@@ -584,13 +611,20 @@ static bool init_capture_dir()
     return false;
   }
 
+  if (!reuse_last_dir) {
+    dir_idx += 1;
+  }
+
   // Create new dir
-  snprintf(capture_path, sizeof(capture_path), "/sdcard/" CAPTURE_DIR_PREFIX "%04u", max_idx+1);
+  snprintf(capture_path, sizeof(capture_path),
+	"/sdcard/" CAPTURE_DIR_PREFIX "%04u", dir_idx);
   
-  if (mkdir(capture_path, 0644) != 0) {
-    Serial.print("Failed to create directory: ");
-    Serial.println(capture_path);
-    return false;
+  if (!reuse_last_dir) {
+    if (mkdir(capture_path, 0644) != 0) {
+      Serial.print("Failed to create directory: ");
+      Serial.println(capture_path);
+      return false;
+    }
   }
 
   Serial.print("Storing pictures in: ");
@@ -687,6 +721,8 @@ void loop()
     save_photo();
 
     if (next_capture_time.tv_sec == 0) { // First time, set to now
+      // TODO: next_capture_time isn't preserved over deep-sleep's. Maybe store
+      // in RTC fast/slow mem???
       next_capture_time = now;
     }
     timeradd(&next_capture_time, &capture_interval_tv, &next_capture_time);
@@ -699,4 +735,35 @@ void loop()
     nmea.process(c);
   }
 #endif //WITH_GNSS
+
+  // Sleep till next capture time
+#ifdef WITH_SLEEP
+  struct timeval time_to_next_capture;
+  (void) gettimeofday(&now, NULL);
+  if (timercmp(&now, &next_capture_time, <)) {
+    timersub(&next_capture_time, &now, &time_to_next_capture);
+
+    uint64_t sleep_time =  ((uint64_t) time_to_next_capture.tv_sec) *
+                            SEC_AS_USEC + time_to_next_capture.tv_usec;
+
+    // Wake earlier to allow initialization
+    if (sleep_time > WAKE_USEC_EARLY) {
+      sleep_time -= WAKE_USEC_EARLY;
+    } else {
+      sleep_time = 0;
+    }
+
+    if (sleep_time >= MIN_SLEEP_TIME) {
+      Serial.printf("Sleeping for %llu us\n", sleep_time);
+      Serial.flush();
+
+      // Turn off camera power
+      digitalWrite(CAM_PWR_GPIO_NUM, HIGH);
+
+      esp_sleep_enable_timer_wakeup(sleep_time);
+      esp_deep_sleep_start();
+      // This line will never be reached....
+    }
+  }
+#endif // WITH_SLEEP
 }

@@ -1,6 +1,9 @@
 #ifndef __CONFIG_H__
 #define __CONFIG_H__
 
+// Enable deep-sleep in between pictures
+#define WITH_SLEEP
+
 // Enable GNSS(GPS/Glonass/Gallileo/etc...) support
 #define WITH_GNSS
 

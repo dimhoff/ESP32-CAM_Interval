@@ -2,7 +2,7 @@
 #define __CONFIG_H__
 
 // Enable GNSS(GPS/Glonass/Gallileo/etc...) support
-#define WITH_GNSS
+//#define WITH_GNSS
 
 // Enable WiFi for NTP time synchronization
 #define WITH_WIFI

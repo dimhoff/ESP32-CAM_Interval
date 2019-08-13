@@ -61,6 +61,11 @@
 # include <MicroNMEA.h>
 #endif // WITH_GNSS
 
+// Time unit defines
+#define MSEC_IN_SEC (1000L)
+#define USEC_IN_MSEC (1000L)
+#define USEC_IN_SEC (MSEC_IN_SEC * USEC_IN_MSEC)
+
 // Select camera model
 //#define CAMERA_MODEL_WROVER_KIT
 #define CAMERA_MODEL_AI_THINKER
@@ -699,4 +704,25 @@ void loop()
     nmea.process(c);
   }
 #endif //WITH_GNSS
+
+  // Sleep till next capture time
+#if !defined(WITH_GNSS)
+  // TODO: Sleep is incompatible with GNSS, because GNSS must listen for the
+  //       incoming NMEA. Waking up at least 2 seconds before capture time,
+  //       and require NMEA output every second can be a simple solution.
+  //       Wakeup on GPIO doesn't seem to work. And loses characters, so the
+  //       first sentence will get corrupted.
+  struct timeval time_to_next_capture;
+  (void) gettimeofday(&now, NULL);
+  if (timercmp(&now, &next_capture_time, <)) {
+    timersub(&next_capture_time, &now, &time_to_next_capture);
+
+    uint64_t sleep_time =  ((uint64_t) time_to_next_capture.tv_sec) *
+                            USEC_IN_SEC + time_to_next_capture.tv_usec;
+    Serial.printf("Sleeping for %llu us\n", sleep_time);
+    esp_sleep_enable_timer_wakeup(sleep_time);
+
+    esp_light_sleep_start();
+  }
+#endif //!defined(WITH_GNSS)
 }

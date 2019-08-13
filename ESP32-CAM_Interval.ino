@@ -85,6 +85,7 @@
 
 // Globals
 static char capture_path[8 + CAPTURE_DIR_PREFIX_LEN + 4 + 1];
+static struct timeval capture_interval_tv;
 #ifdef WITH_GNSS
 char nmeaBuffer[255];
 MicroNMEA nmea(nmeaBuffer, sizeof(nmeaBuffer));
@@ -124,6 +125,8 @@ void setup()
     goto fail;
   }
   update_exif_from_cfg(cfg);
+  capture_interval_tv.tv_sec = cfg.getCaptureInterval() / 1000;
+  capture_interval_tv.tv_usec = (cfg.getCaptureInterval() % 1000) * 1000;
 
   // Get current Time
 #ifdef WITH_GNSS
@@ -673,14 +676,20 @@ static void save_photo()
 
 void loop()
 {
-  static long current_millis;
-  static long last_capture_millis = 0;
+  static struct timeval next_capture_time = { 0, 0 };
 
   // Take picture if interval passed
-  current_millis = millis();
-  if (current_millis - last_capture_millis > cfg.getCaptureInterval()) {
-    last_capture_millis = current_millis;
+  // NOTE: This breaks if clock jumps are introduced. Make sure to use
+  // adjtime().
+  struct timeval now;
+  (void) gettimeofday(&now, NULL);
+  if (!timercmp(&now, &next_capture_time, <)) {
     save_photo();
+
+    if (next_capture_time.tv_sec == 0) { // First time, set to now
+      next_capture_time = now;
+    }
+    timeradd(&next_capture_time, &capture_interval_tv, &next_capture_time);
   }
 
   // Process Serial input

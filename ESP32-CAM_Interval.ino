@@ -97,9 +97,15 @@
 #define CAPTURE_DIR_PREFIX "timelapse"
 #define CAPTURE_DIR_PREFIX_LEN 9
 
+// RTC memory storage
+RTC_DATA_ATTR struct {
+	struct timeval next_capture_time;
+} nv_data;
+
 // Globals
 static char capture_path[8 + CAPTURE_DIR_PREFIX_LEN + 4 + 1];
 static struct timeval capture_interval_tv;
+static struct timeval next_capture_time;
 #ifdef WITH_GNSS
 char nmeaBuffer[255];
 MicroNMEA nmea(nmeaBuffer, sizeof(nmeaBuffer));
@@ -171,6 +177,15 @@ void setup()
     Serial.println("Failed to determine current date/time\n");
   }
 
+  // Inititialize next capture time
+  if (is_wakeup) {
+    next_capture_time = nv_data.next_capture_time;
+  } else {
+    (void) gettimeofday(&next_capture_time, NULL);
+  }
+  Serial.printf("Next image at: %s", ctime(&next_capture_time.tv_sec));
+
+  // Initialize capture directory
   if (!init_capture_dir(is_wakeup)) {
     goto fail;
   }
@@ -710,8 +725,6 @@ static void save_photo()
 
 void loop()
 {
-  static struct timeval next_capture_time = { 0, 0 };
-
   // Take picture if interval passed
   // NOTE: This breaks if clock jumps are introduced. Make sure to use
   // adjtime().
@@ -720,11 +733,6 @@ void loop()
   if (!timercmp(&now, &next_capture_time, <)) {
     save_photo();
 
-    if (next_capture_time.tv_sec == 0) { // First time, set to now
-      // TODO: next_capture_time isn't preserved over deep-sleep's. Maybe store
-      // in RTC fast/slow mem???
-      next_capture_time = now;
-    }
     timeradd(&next_capture_time, &capture_interval_tv, &next_capture_time);
   }
 
@@ -756,6 +764,9 @@ void loop()
     if (sleep_time >= MIN_SLEEP_TIME) {
       Serial.printf("Sleeping for %llu us\n", sleep_time);
       Serial.flush();
+
+      // Preserve non-volatile data
+      nv_data.next_capture_time = next_capture_time;
 
       // Turn off camera power
       digitalWrite(CAM_PWR_GPIO_NUM, HIGH);

@@ -151,6 +151,17 @@ int Configuration::config_set(const char *key, const char *value)
       Serial.printf("Value of '%s' is not a valid boolean\n", key);
       return -2;
     }
+  } else if (strcasecmp(key, "training_shots") == 0) {
+    int int_value;
+    if (parse_int(value, &int_value) != true) {
+      Serial.printf("Value of '%s' is not a valid integer\n", key);
+      return -2;
+    }
+    if (int_value < 0) {
+      Serial.printf("Value of '%s' is out of range\n", key);
+      return -2;
+    }
+    m_training_shots = int_value;
   } else if(!strcasecmp(key, "framesize")) {
     if (strcasecmp(value, "QQVGA") == 0 ||
         strcasecmp(value, "160x120") == 0) {

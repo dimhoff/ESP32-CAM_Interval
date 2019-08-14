@@ -57,6 +57,7 @@ public:
     m_capture_interval(5000),
     m_enable_busy_led(true),
     m_enable_flash(false),
+    m_training_shots(0),
     m_ssid(""),
     m_password(""),
     m_ntp_server("pool.ntp.org"),
@@ -93,6 +94,7 @@ public:
   unsigned int getCaptureInterval() const { return m_capture_interval; }
   bool getEnableBusyLed() const { return m_enable_busy_led; }
   bool getEnableFlash() const { return m_enable_flash; }
+  unsigned int getTrainingShots() const { return m_training_shots; };
 
   const char *getSsid() const { return m_ssid; }
   const char *getPassword() const { return m_password; }
@@ -141,6 +143,8 @@ private:
         /* Enable LED when taking a picture to indicate device is busy. */
   bool m_enable_flash;
         /* Enable Flash LED when taking a picture */
+  unsigned int m_training_shots;
+        /* Amount of images to take before the real shot to train the AGC/AWB */
 
   // Wi-Fi/NTP options
   char m_ssid[65]; /**< WiFi ssid to connect to */

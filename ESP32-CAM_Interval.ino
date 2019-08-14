@@ -655,6 +655,8 @@ static bool init_capture_dir(bool reuse_last_dir)
  */
 static void save_photo()
 {
+  camera_fb_t *fb;
+
   if (cfg.getEnableBusyLed()) {
     digitalWrite(LED_GPIO_NUM, LOW);
   }
@@ -662,9 +664,18 @@ static void save_photo()
     digitalWrite(FLASH_GPIO_NUM, HIGH);
   }
 
+  // Take some shots to train the AGC/AWB
+  Serial.print("Training:");
+  for (int i=cfg.getTrainingShots(); i != 0; i--) {
+    Serial.printf(" %d", i);
+    fb = esp_camera_fb_get();
+    esp_camera_fb_return(fb);
+  }
+  Serial.println(" Done");
+
   // Take picture
   Serial.print("Taking picture... ");
-  camera_fb_t *fb = esp_camera_fb_get();
+  fb = esp_camera_fb_get();
 
   // Disable Flash
   if (cfg.getEnableFlash()) {

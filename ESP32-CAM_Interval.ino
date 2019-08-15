@@ -135,9 +135,9 @@ void setup()
   // This is needed because resistors R11, R12 and R13 form a voltage divider
   // that causes a voltage of about 0.57 Volt on the base of transistor Q1.
   // This will dimly light up the flash LED.
+  rtc_gpio_hold_dis(gpio_num_t(FLASH_GPIO_NUM));
   pinMode(FLASH_GPIO_NUM, OUTPUT);
   digitalWrite(FLASH_GPIO_NUM, LOW);
-  rtc_gpio_hold_en(GPIO_NUM_4);
 #endif //!defined(WITH_SD_4BIT) && defined(CAMERA_MODEL_AI_THINKER)
   
   // Configure red LED
@@ -145,10 +145,10 @@ void setup()
   digitalWrite(LED_GPIO_NUM, HIGH);
 
   // Enable camera power
+  rtc_gpio_hold_dis(gpio_num_t(CAM_PWR_GPIO_NUM));
   pinMode(CAM_PWR_GPIO_NUM, OUTPUT);
   digitalWrite(CAM_PWR_GPIO_NUM, LOW);
-  rtc_gpio_hold_en(GPIO_NUM_32);
-  
+
   // TODO: error log to file?
 
   // Load config file
@@ -781,6 +781,13 @@ void loop()
 
       // Turn off camera power
       digitalWrite(CAM_PWR_GPIO_NUM, HIGH);
+
+      // Lock pin states (need to be unlocked at init again)
+#if !defined(WITH_SD_4BIT) && defined(CAMERA_MODEL_AI_THINKER)
+      rtc_gpio_hold_en(gpio_num_t(FLASH_GPIO_NUM));
+#endif
+      rtc_gpio_hold_en(gpio_num_t(CAM_PWR_GPIO_NUM));
+      gpio_deep_sleep_hold_en();
 
       esp_sleep_enable_timer_wakeup(sleep_time);
       esp_deep_sleep_start();

@@ -78,7 +78,7 @@
 
 // Minimum sleep time.
 // If next capture is less then this many micro seconds away, then stay awake.
-#define MIN_SLEEP_TIME (1 * SEC_AS_USEC)
+#define MIN_SLEEP_TIME (15 * SEC_AS_USEC)
 // Wake-up this many micro seconds before capture time to allow initialization.
 #define WAKE_USEC_EARLY (6 * SEC_AS_USEC)
 

@@ -52,6 +52,17 @@ signal is connected. The ESP32's UART0 TX signal is used for error/debug output.
 
 The receiver must the following serial port settings: 115200 baud, 8N1.
 
+Power saving
+------------
+The firmware puts the device in deep sleep if the interval between images is
+big. The camera is powered down by powering down the 1.2 and 2.8 Volt voltage
+regulators. This is probably not according to spec. But the camera reset line
+and power down line are not connected to the ESP32 on the ESP32-CAM boards. So
+this seems the only way to do it.
+
+Note that even in deep sleep mode the camera module still uses a little more
+than 3 mA.
+
 Troubleshooting
 ---------------
 The only way to troubleshoot issues is to connect to the serial port and check

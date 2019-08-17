@@ -64,31 +64,44 @@
 # include <MicroNMEA.h>
 #endif // WITH_GNSS
 
-// Time unit defines
-#define MSEC_AS_USEC (1000L)
-#define SEC_AS_USEC (1000L * MSEC_AS_USEC)
+#include "camera_pins.h"
 
-// Select camera model
-//#define CAMERA_MODEL_WROVER_KIT
-#define CAMERA_MODEL_AI_THINKER
+#include "configuration.h"
+#include "exif.h"
+
+// Check for incompatible configuration
+#ifdef CAMERA_MODEL_AI_THINKER
+#  if defined(WITH_SD_4BIT) && defined(WITH_CAM_PWDN)
+#    error "WITH_SD_4BIT option is incompatible with the PWDN hack"
+#  endif // defined(WITH_SD_4BIT) && defined(WITH_CAM_PWDN)
+
+#  if defined(WITH_SD_4BIT) && defined(WITH_FLASH)
+#    error "WITH_SD_4BIT option is incompatible with the WITH_FLASH option"
+#  endif
+#endif // CAMERA_MODEL_AI_THINKER
 
 #define LED_GPIO_NUM 33
 #define FLASH_GPIO_NUM 4
 #define CAM_PWR_GPIO_NUM 32
+#ifdef WITH_CAM_PWDN
+# undef PWDN_GPIO_NUM
+# define PWDN_GPIO_NUM 12
+#endif
+
+// Time unit defines
+#define MSEC_AS_USEC (1000L)
+#define SEC_AS_USEC (1000L * MSEC_AS_USEC)
 
 // Minimum sleep time.
 // If next capture is less then this many micro seconds away, then stay awake.
+// FIXME: This can probably be reduced if WITH_EVIL_CAM_PWR_SHUTDOWN is
+//        disabled, test this.
 #define MIN_SLEEP_TIME (15 * SEC_AS_USEC)
 // Wake-up this many micro seconds before capture time to allow initialization.
 #define WAKE_USEC_EARLY (6 * SEC_AS_USEC)
 
 #define GPS_NMEA_TIMEOUT_MS (15L * 1000L)
 #define GPS_DATETIME_TIMEOUT_MS (120L * 1000L)
-
-#include "camera_pins.h"
-
-#include "configuration.h"
-#include "exif.h"
 
 // Minimal unix time for clock to be considered valid.
 #define NOT_BEFORE_TIME 1564437734
@@ -128,8 +141,21 @@ void setup()
   if (!init_sdcard()) {
     goto fail;
   }
-  
-#if !defined(WITH_SD_4BIT) && defined(CAMERA_MODEL_AI_THINKER)
+
+  // Enable camera 1.2 and 2.8 Volt
+  rtc_gpio_hold_dis(gpio_num_t(CAM_PWR_GPIO_NUM));
+  pinMode(CAM_PWR_GPIO_NUM, OUTPUT);
+  digitalWrite(CAM_PWR_GPIO_NUM, LOW);
+  // TODO: maybe wait for voltage to stabelize?
+
+#if PWDN_GPIO_NUM >= 0
+  // Wakeup camera
+  rtc_gpio_hold_dis(gpio_num_t(PWDN_GPIO_NUM));
+  pinMode(PWDN_GPIO_NUM, OUTPUT);
+  digitalWrite(PWDN_GPIO_NUM, LOW);
+#endif // PWDN_GPIO_NUM >= 0
+
+#ifdef WITH_FLASH
   // WORKAROUND:
   // Force Flash LED off on AI Thinker boards.
   // This is needed because resistors R11, R12 and R13 form a voltage divider
@@ -138,16 +164,11 @@ void setup()
   rtc_gpio_hold_dis(gpio_num_t(FLASH_GPIO_NUM));
   pinMode(FLASH_GPIO_NUM, OUTPUT);
   digitalWrite(FLASH_GPIO_NUM, LOW);
-#endif //!defined(WITH_SD_4BIT) && defined(CAMERA_MODEL_AI_THINKER)
+#endif // WITH_FLASH
   
   // Configure red LED
   pinMode(LED_GPIO_NUM, OUTPUT);
   digitalWrite(LED_GPIO_NUM, HIGH);
-
-  // Enable camera power
-  rtc_gpio_hold_dis(gpio_num_t(CAM_PWR_GPIO_NUM));
-  pinMode(CAM_PWR_GPIO_NUM, OUTPUT);
-  digitalWrite(CAM_PWR_GPIO_NUM, LOW);
 
   // TODO: error log to file?
 
@@ -660,9 +681,11 @@ static void save_photo()
   if (cfg.getEnableBusyLed()) {
     digitalWrite(LED_GPIO_NUM, LOW);
   }
+#ifdef WITH_FLASH
   if (cfg.getEnableFlash()) {
     digitalWrite(FLASH_GPIO_NUM, HIGH);
   }
+#endif // WITH_FLASH
 
   // Take some shots to train the AGC/AWB
   Serial.print("Training:");
@@ -678,9 +701,11 @@ static void save_photo()
   fb = esp_camera_fb_get();
 
   // Disable Flash
+#ifdef WITH_FLASH
   if (cfg.getEnableFlash()) {
     digitalWrite(FLASH_GPIO_NUM, LOW);
   }
+#endif // WITH_FLASH
 
   // Generate filename
   time_t now = time(NULL);
@@ -780,14 +805,22 @@ void loop()
       nv_data.next_capture_time = next_capture_time;
 
       // Turn off camera power
+      esp_camera_deinit();
+#if PWDN_GPIO_NUM >= 0
+      digitalWrite(PWDN_GPIO_NUM, HIGH); // esp_camera_deinit() doesn't power down camera...
+#endif // PWDN_GPIO_NUM >= 0
+#ifdef WITH_EVIL_CAM_PWR_SHUTDOWN
       digitalWrite(CAM_PWR_GPIO_NUM, HIGH);
+#endif // WITH_CAM_PWR_SHUTDOWN
 
       // Lock pin states (need to be unlocked at init again)
-#if !defined(WITH_SD_4BIT) && defined(CAMERA_MODEL_AI_THINKER)
+#ifdef WITH_FLASH
       rtc_gpio_hold_en(gpio_num_t(FLASH_GPIO_NUM));
-#endif
+#endif // WITH_FLASH
       rtc_gpio_hold_en(gpio_num_t(CAM_PWR_GPIO_NUM));
-      gpio_deep_sleep_hold_en();
+#if PWDN_GPIO_NUM >= 0
+      rtc_gpio_hold_en(gpio_num_t(PWDN_GPIO_NUM)); //TODO: is this needed???
+#endif // PWDN_GPIO_NUM >= 0
 
       esp_sleep_enable_timer_wakeup(sleep_time);
       esp_deep_sleep_start();

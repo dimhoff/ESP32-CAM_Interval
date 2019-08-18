@@ -85,13 +85,12 @@ In other words:
 # Overall
 The averages and totals measured across the whole measurement duration.
 
-|   Test | Duration | Avg. Current | Avg. Power | Total Power |
-|        |      (s) |         (mA) |       (mW) |       (mWh) |
-| ------ | --------:| ------------:| ----------:| -----------:|
-| Test 1 |   298.40 |        36.91 |     122.19 |       10.13 |
-| Test 2 |   298.20 |        21.71 |      71.75 |        5.94 |
-| Test 3 |   298.00 |        23.81 |      78.74 |        9.32 |
-| Test 4 |   298.20 |        21.24 |      70.19 |        8.31 |
+|   Test | Duration (s) | Avg. Current (mA) | Avg. Power (mW) | Total Power (mWh) |
+| ------ | ------------:| -----------------:| ---------------:| -----------------:|
+| Test 1 |       298.40 |             36.91 |          122.19 |             10.13 |
+| Test 2 |       298.20 |             21.71 |           71.75 |              5.94 |
+| Test 3 |       298.00 |             23.81 |           78.74 |              9.32 |
+| Test 4 |       298.20 |             21.24 |           70.19 |              8.31 |
 
  - Test 1:
    ![Screenshot of measurement results, test 1](energy_analysis_test1.png)
@@ -107,24 +106,22 @@ These are the averages of the average and total values of all active times
 within the measurement. The number between parentheses in the standard deviation
 of the individual active intervals.
 
-|   Test |    Duration | Avg. Current |    Avg. Power |    Total Power |
-|        |         (s) |         (mA) |          (mW) |          (µWh) |
-| ------ | -----------:| ------------:| -------------:| --------------:|
-| Test 1 | 7.04 (0.15) | 88.16 (0.73) | 291.24 (2.41) | 569.47 (15.95) |
-| Test 2 | 7.32 (0.04) | 82.94 (0.48) | 273.99 (1.58) | 556.77 ( 2.90) |
-| Test 3 | 7.27 (0.06) | 83.95 (0.49) | 277.34 (1.61) | 559.87 ( 4.32) |
-| Test 4 | 7.47 (0.08) | 82.20 (0.30) | 271.54 (0.98) | 563.25 ( 6.53) |
+|   Test | Duration (s) | Avg. Current (mA) | Avg. Power (mW) | Total Power (µWh) |
+| ------ | ------------:| -----------------:| ---------------:| -----------------:|
+| Test 1 |  7.04 (0.15) |      88.16 (0.73) |   291.24 (2.41) |    569.47 (15.95) |
+| Test 2 |  7.32 (0.04) |      82.94 (0.48) |   273.99 (1.58) |    556.77 ( 2.90) |
+| Test 3 |  7.27 (0.06) |      83.95 (0.49) |   277.34 (1.61) |    559.87 ( 4.32) |
+| Test 4 |  7.47 (0.08) |      82.20 (0.30) |   271.54 (0.98) |    563.25 ( 6.53) |
 
 # Deep Sleep Time
 
-|    Test |     Duration | Avg. Current |    Avg. Power |    Total Power |
-|         |          (s) |         (mA) |          (mW) |          (µWh) |
-| ------- | ------------:| ------------:| -------------:| --------------:|
-| Test 1L | 22.83 (0.17) | 20.13 (0.06) |  66.83 (0.21) |  423.87 (4.27) |
-| Test 1H | 22.76 (0.20) | 24.93 (0.08) |  82.73 (0.28) |  523.03 (6.36) |
-| Test 2  | 22.34 (0.08) |  1.79 (0.01) |   5.97 (0.01) |   37.02 (0.18) |
-| Test 3  | 22.33 (0.10) |  4.02 (0.11) |  13.37 (0.35) |   82.92 (1.92) |
-| Test 4  | 22.16 (0.08) |  1.53 (0.42) |   5.09 (1.39) |   31.32 (8.62) |
+|    Test | Duration (s) | Avg. Current (mA) | Avg. Power (mW) | Total Power (µWh) |
+| ------- | ------------:| -----------------:| ---------------:| -----------------:|
+| Test 1L | 22.83 (0.17) |      20.13 (0.06) |    66.83 (0.21) |     423.87 (4.27) |
+| Test 1H | 22.76 (0.20) |      24.93 (0.08) |    82.73 (0.28) |     523.03 (6.36) |
+| Test 2  | 22.34 (0.08) |       1.79 (0.01) |     5.97 (0.01) |      37.02 (0.18) |
+| Test 3  | 22.33 (0.10) |       4.02 (0.11) |    13.37 (0.35) |      82.92 (1.92) |
+| Test 4  | 22.16 (0.08) |       1.53 (0.42) |     5.09 (1.39) |      31.32 (8.62) |
 
 Notice that test1 is split into two parts. This is because two different
 behaviours could clearly be identified.

@@ -179,8 +179,13 @@ So if low power consumption is required it is suggested to modify the PCB
 instead of using the CAM_PWR line provided on the vanilla PCB.
 
 
+Further Research
+================
+Some things I haven't fully looked into that might be interresting to
+investigate are described below.
+
 Properly switching the camera power
-===================================
+-----------------------------------
 A modification that could lower the power usage in sleep mode even more is to
 connect the camera 3.3 Volt to the 3.3 V line switched by Q2. This way all
 power to the camera is removed. All pull-up resistors on the camera I/O lines
@@ -194,3 +199,13 @@ pull-up's to the camera I/O and the 3.3V pin of the camera. Only R19 is at the
 opposite site of the board.
 
 Note this does not remove the 0.150 mA standby consumption of the PSRAM.
+
+SCCB software power-down
+------------------------
+The camera datasheet also describes a software initiated power down mode. This
+could be useful in cases where you don't want to modify the PCB. It uses more
+than hardware power down. But with 1-2 mA it uses a lot less than leaving the
+camera on.
+
+I think the proper way to implement this would be to add it to
+esp32_camera_deinit() function.

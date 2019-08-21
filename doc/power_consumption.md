@@ -71,8 +71,9 @@ The following configurations were tested:
  - Test 2: WITH_CAM_PWDN enabled
  - Test 3: WITH_EVIL_CAM_PWR_SHUTDOWN enabled
  - Test 4: both WITH_CAM_PWDN and WITH_EVIL_CAM_PWR_SHUTDOWN enabled
+ - Test 5: WITH_CAM_PWDN enabled, R14 changed to pull-down, and R11 removed
 
-In other words:
+The test configuration in table form:
 
 |   Test | WITH_CAM_PWDN | WITH_EVIL_CAM_PWR_SHUTDOWN |
 | ------:|:-------------:|:--------------------------:|
@@ -80,7 +81,13 @@ In other words:
 | Test 2 |       X       |                            |
 | Test 3 |               |             X              |
 | Test 4 |       X       |             X              |
+| Test 5 |       X       |                            |
 
+For test 5 some extra modifications were done to the PCB. First R11, the
+pull-up on the HS2_DATA1 line, was removed. This because it conflicts with the
+pull-down that is also on this line and only uses extra energy. Secondly the
+R14 pull-up on the CAM-PWR line was changed into a pull-down. Since for this
+test the CAM_PWR line is always kept low, and this pull-up uses about 0.3 mA.
 
 # Overall
 The averages and totals measured across the whole measurement duration.
@@ -91,6 +98,11 @@ The averages and totals measured across the whole measurement duration.
 | Test 2 |       298.20 |             21.71 |           71.75 |              5.94 |
 | Test 3 |       298.00 |             23.81 |           78.74 |              9.32 |
 | Test 4 |       298.20 |             21.24 |           70.19 |              8.31 |
+| Test 5 |       298.60 |             21.22 |           70.17 |              5.82 |
+
+NOTE: I have some doubts about the accuracy of SimplicityStudios calculation of
+these numbers. Trying to measure the same interval twice gives different
+numbers every time.
 
  - Test 1:
    ![Screenshot of measurement results, test 1](energy_analysis_test1.png)
@@ -100,6 +112,8 @@ The averages and totals measured across the whole measurement duration.
    ![Screenshot of measurement results, test 3](energy_analysis_test3.png)
  - Test 4:
    ![Screenshot of measurement results, test 4](energy_analysis_test4.png)
+ - Test 5:
+   ![Screenshot of measurement results, test 5](energy_analysis_test5.png)
 
 # Active Time
 These are the averages of the average and total values of all active times
@@ -112,6 +126,8 @@ of the individual active intervals.
 | Test 2 |  7.32 (0.04) |      82.94 (0.48) |   273.99 (1.58) |    556.77 ( 2.90) |
 | Test 3 |  7.27 (0.06) |      83.95 (0.49) |   277.34 (1.61) |    559.87 ( 4.32) |
 | Test 4 |  7.47 (0.08) |      82.20 (0.30) |   271.54 (0.98) |    563.25 ( 6.53) |
+| Test 5 |  7.34 (0.08) |      82.02 (0.56) |   271.15 (1.83) |    552.67 ( 7.97) |
+
 
 # Deep Sleep Time
 
@@ -122,6 +138,7 @@ of the individual active intervals.
 | Test 2  | 22.34 (0.08) |       1.79 (0.01) |     5.97 (0.01) |      37.02 (0.18) |
 | Test 3  | 22.33 (0.10) |       4.02 (0.11) |    13.37 (0.35) |      82.92 (1.92) |
 | Test 4  | 22.16 (0.08) |       1.53 (0.42) |     5.09 (1.39) |      31.32 (8.62) |
+| Test 5  | 22.38 (0.11) |       1.41 (0.01) |     4.68 (0.02) |      29.09 (0.29) |
 
 Notice that test1 is split into two parts. This is because two different
 behaviours could clearly be identified.
@@ -132,22 +149,27 @@ there were a lot of intervals with low current draw. However in earlier test I
 saw a lot of period with average currents around 2 mA.
 
 # Conclusion
-Although enabling both WITH_CAM_PWDN and WITH_EVIL_CAM_PWR_SHUTDOWN generated
-the lowest power usage overall, it is not the preferred setup. This because the
-deep sleep power usage fluctuated strongly and might over a longer time be
-worst.
+Test 5 shows that the lowest power consumption is achieved by using the PWDN
+pin of the camera instead of switching the low voltage power rails. This also
+generates a much more stable power consumption. And it is more according to
+spec.
 
-The situation where only WITH_CAM_PWDN is enabled delivered a very low and
-stable power consumption. This method is also more in line with the usage
-specification of the camera. So this method should be preferred
+So if low power consumption is required it is suggested to modify the PCB
+instead of using the CAM_PWR line provided on the vanilla PCB.
 
-Note that in the scenarios where WITH_EVIL_CAM_PWR_SHUTDOWN was disabled an
-extra 0.3 mA can be saved by removing the pull-up on the CAM_PWR line.
 
-TODO:
-=====
-Some modifications that might be worth it:
+Properly switching the camera power
+===================================
+A modification that could lower the power usage in sleep mode even more is to
+connect the camera 3.3 Volt to the 3.3 V line switched by Q2. This way all
+power to the camera is removed. All pull-up resistors on the camera I/O lines
+also need to be connected to the switched 3.3 V to prevent powering the module
+through the I/O lines.
 
- - Remove CAM_PWR pull-up's, and maybe bypass Q2. Should save 0.3 mA.
- - Connect 3v3 to CAM1 header and all camera pull-ups to the 3v3 after Q2. This
-   way the whole camera can be shutdown. (and optionally also the SD Card)
+I didn't try this but a short investigation into this suggested the following
+can be done: The 3.3 V line needs to be cut just after R14 (or before if R14 is
+removed). If I'm correct everything after R14 connected to this trace are
+pull-up's to the camera I/O and the 3.3V pin of the camera. Only R19 is at the
+opposite site of the board.
+
+Note this does not remove the 0.150 mA standby consumption of the PSRAM.

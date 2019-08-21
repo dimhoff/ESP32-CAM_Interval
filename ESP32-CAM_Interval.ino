@@ -148,6 +148,10 @@ void setup()
   Serial.begin(115200);
   Serial.println();
 
+  // Configure red LED
+  pinMode(LED_GPIO_NUM, OUTPUT);
+  digitalWrite(LED_GPIO_NUM, HIGH);
+
   // Init SD Card
   if (!init_sdcard()) {
     goto fail;
@@ -177,10 +181,6 @@ void setup()
   digitalWrite(FLASH_GPIO_NUM, LOW);
 #endif // WITH_FLASH
   
-  // Configure red LED
-  pinMode(LED_GPIO_NUM, OUTPUT);
-  digitalWrite(LED_GPIO_NUM, HIGH);
-
   // TODO: error log to file?
 
   // Load config file

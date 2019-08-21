@@ -55,13 +55,14 @@ The receiver must the following serial port settings: 115200 baud, 8N1.
 Power saving
 ------------
 The firmware puts the device in deep sleep if the interval between images is
-big. The camera is powered down by powering down the 1.2 and 2.8 Volt voltage
-regulators. This is probably not according to spec. But the camera reset line
-and power down line are not connected to the ESP32 on the ESP32-CAM boards. So
-this seems the only way to do it.
+big. However the camera is _not_ powered down. This is because the pin required
+to properly power down the camera is not connected to the MCU by default. While
+the CAM_PWR pin that is availabe only switches of the 1.2 and 2.8 Volt voltage
+regulators. This only partialy powers down the camera and leaves it in some
+undefined state. This is probably not according to spec
 
-Note that even in deep sleep mode the camera module still uses a little more
-than 3 mA.
+To properly power down the camera a modification must be made to the PCB. For
+details see doc/power_consumption.md.
 
 Troubleshooting
 ---------------

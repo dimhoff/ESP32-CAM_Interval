@@ -13,11 +13,32 @@ The correct way to put the camera in power down mode is to set the PWDN pin
 high. However the PWDN pin on the ESP32-CAM board is not connected to the MCU
 but pulled down with a 1k resistor, R3.
 
-To be able to control the PWDN pin a modification to the PCB is needed. First
-remove resistor R3 from the board. Now connect the pad closest to the CAM1
-connector with a wire to IO12 pin on header P2. See the image for more details.
+To be able to control the PWDN pin a modification to the PCB is needed. Below
+two method are described. The new method is suggested. While the old method is
+here for documentation since it was used for the test below.
 
-![Image of PCB with PWDN hack](pcb_with_pwdn_hack.jpg)
+PWDN PCB patch
+--------------------------
+In this patch the camera PWDN pin is connected to the CAM_PWR line, and Q2 is
+removed. The switched 3.3 V is connected directly to the 3.3 V.
+
+First remove R3, Q2, R15, and R14 from the PCB. Then bridge the two pads of Q2
+closest to the CAM1 connector with a wire. Finally connect the pad of R3
+closest to the CAM1 connector to the pad of R15 closest to the CAM1 connector.
+
+For more details see this image:
+![Image of PCB with PWDN patch](pcb_with_pwdn_patch.jpg)
+
+Optionally R11 can also be removed to save an extra 0.07 mA. This is the
+pull-up on the flash LED, which isn't necessary.
+
+PWDN PCB patch, old method
+--------------------------
+First remove resistor R3 from the board. Now connect the pad of R3 closest to
+the CAM1 connector with a wire to IO12 pin on header P2.
+
+For more details see this image:
+![Image of PCB with PWDN patch, old method](pcb_with_old_pwdn_patch.jpg)
 
 Since the GPIO12 pin is used for the 4-bit SD card bus, this means the
 WITH_SD_4BIT compile option in config.h must be disabled.

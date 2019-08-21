@@ -79,13 +79,24 @@
 #    error "WITH_SD_4BIT option is incompatible with the WITH_FLASH option"
 #  endif
 #endif // CAMERA_MODEL_AI_THINKER
+#ifndef CAMERA_MODEL_AI_THINKER
+// Currently I developed on the ESP32-CAM board. The firmware should also work
+// on other board but you have to check if the pin configuration and if the
+// flash LED and camera power down work arounds are needed.
+# error "Firmware currently only supports the AI-Thinker ESP32-CAM board."
+#endif // !CAMERA_MODEL_AI_THINKER
 
 #define LED_GPIO_NUM 33
 #define FLASH_GPIO_NUM 4
 #define CAM_PWR_GPIO_NUM 32
 #ifdef WITH_CAM_PWDN
 # undef PWDN_GPIO_NUM
-# define PWDN_GPIO_NUM 12
+# define PWDN_GPIO_NUM 32
+#endif
+
+#if defined(WITH_CAM_PWDN) && defined(WITH_EVIL_CAM_PWR_SHUTDOWN) && \
+    PWDN_GPIO_NUM == CAM_PWR_GPIO_NUM
+# error "PWDN_GPIO_NUM can not be equal to CAM_PWR_GPIO_NUM"
 #endif
 
 // Time unit defines

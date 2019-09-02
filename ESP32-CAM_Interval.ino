@@ -64,40 +64,10 @@
 # include <MicroNMEA.h>
 #endif // WITH_GNSS
 
-#include "camera_pins.h"
-
+#include "io_defs.h"
+#include "camera.h"
 #include "configuration.h"
 #include "exif.h"
-
-// Check for incompatible configuration
-#ifdef CAMERA_MODEL_AI_THINKER
-#  if defined(WITH_SD_4BIT) && defined(WITH_CAM_PWDN)
-#    error "WITH_SD_4BIT option is incompatible with the PWDN hack"
-#  endif // defined(WITH_SD_4BIT) && defined(WITH_CAM_PWDN)
-
-#  if defined(WITH_SD_4BIT) && defined(WITH_FLASH)
-#    error "WITH_SD_4BIT option is incompatible with the WITH_FLASH option"
-#  endif
-#endif // CAMERA_MODEL_AI_THINKER
-#ifndef CAMERA_MODEL_AI_THINKER
-// Currently I developed on the ESP32-CAM board. The firmware should also work
-// on other board but you have to check if the pin configuration and if the
-// flash LED and camera power down work arounds are needed.
-# error "Firmware currently only supports the AI-Thinker ESP32-CAM board."
-#endif // !CAMERA_MODEL_AI_THINKER
-
-#define LED_GPIO_NUM 33
-#define FLASH_GPIO_NUM 4
-#define CAM_PWR_GPIO_NUM 32
-#ifdef WITH_CAM_PWDN
-# undef PWDN_GPIO_NUM
-# define PWDN_GPIO_NUM 32
-#endif
-
-#if defined(WITH_CAM_PWDN) && defined(WITH_EVIL_CAM_PWR_SHUTDOWN) && \
-    PWDN_GPIO_NUM == CAM_PWR_GPIO_NUM
-# error "PWDN_GPIO_NUM can not be equal to CAM_PWR_GPIO_NUM"
-#endif
 
 // Time unit defines
 #define MSEC_AS_USEC (1000L)
@@ -157,19 +127,6 @@ void setup()
     goto fail;
   }
 
-  // Enable camera 1.2 and 2.8 Volt
-  rtc_gpio_hold_dis(gpio_num_t(CAM_PWR_GPIO_NUM));
-  pinMode(CAM_PWR_GPIO_NUM, OUTPUT);
-  digitalWrite(CAM_PWR_GPIO_NUM, LOW);
-  // TODO: maybe wait for voltage to stabelize?
-
-#if PWDN_GPIO_NUM >= 0
-  // Wakeup camera
-  rtc_gpio_hold_dis(gpio_num_t(PWDN_GPIO_NUM));
-  pinMode(PWDN_GPIO_NUM, OUTPUT);
-  digitalWrite(PWDN_GPIO_NUM, LOW);
-#endif // PWDN_GPIO_NUM >= 0
-
 #ifdef WITH_FLASH
   // WORKAROUND:
   // Force Flash LED off on AI Thinker boards.
@@ -223,7 +180,7 @@ void setup()
   }
 
   // camera init
-  if (!init_camera()) {
+  if (!camera_init()) {
     goto fail;
   }
 
@@ -232,210 +189,13 @@ void setup()
   return;
 
 fail:
+  // TODO: write dead program for ULP to blink led while in deep sleep, instead of waste power with main CPU
   while (true) {
     digitalWrite(LED_GPIO_NUM, LOW);
     delay(1000);
     digitalWrite(LED_GPIO_NUM, HIGH);
     delay(1000);
   }
-}
-
-/**
- * Initialize camera driver
- */
-bool init_camera()
-{
-  esp_err_t err = ESP_FAIL;
-  camera_config_t config;
-
-  config.ledc_channel = LEDC_CHANNEL_0;
-  config.ledc_timer = LEDC_TIMER_0;
-  config.pin_d0 = Y2_GPIO_NUM;
-  config.pin_d1 = Y3_GPIO_NUM;
-  config.pin_d2 = Y4_GPIO_NUM;
-  config.pin_d3 = Y5_GPIO_NUM;
-  config.pin_d4 = Y6_GPIO_NUM;
-  config.pin_d5 = Y7_GPIO_NUM;
-  config.pin_d6 = Y8_GPIO_NUM;
-  config.pin_d7 = Y9_GPIO_NUM;
-  config.pin_xclk = XCLK_GPIO_NUM;
-  config.pin_pclk = PCLK_GPIO_NUM;
-  config.pin_vsync = VSYNC_GPIO_NUM;
-  config.pin_href = HREF_GPIO_NUM;
-  config.pin_sscb_sda = SIOD_GPIO_NUM;
-  config.pin_sscb_scl = SIOC_GPIO_NUM;
-  config.pin_pwdn = PWDN_GPIO_NUM;
-  config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_JPEG;
-  //init with high specs to pre-allocate larger buffers
-  if (psramFound()) {
-    Serial.println("PSRAM found, using UXGA frame size");
-    config.frame_size = FRAMESIZE_UXGA;
-    config.jpeg_quality = 10;
-    config.fb_count = 2;
-  } else {
-    Serial.println("No PSRAM found, using SVGA frame size");
-    config.frame_size = FRAMESIZE_SVGA;
-    config.jpeg_quality = 12;
-    config.fb_count = 1;
-  }
-
-  err = esp_camera_init(&config);
-  if (err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x", err);
-    return false;
-  }
-
-  int res;
-  sensor_t *s = esp_camera_sensor_get();
-
-  // Set configuration
-  res = s->set_framesize(s, cfg.getFrameSize());
-  if (res != 0) {
-    Serial.printf("Unable to set 'frame size': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_quality(s, cfg.getQuality());
-  if (res != 0) {
-    Serial.printf("Unable to set 'quality': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_contrast(s, cfg.getContrast());
-  if (res != 0) {
-    Serial.printf("Unable to set 'contrast': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_brightness(s, cfg.getBrightness());
-  if (res != 0) {
-    Serial.printf("Unable to set 'brightness': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_saturation(s, cfg.getSaturation());
-  if (res != 0) {
-    Serial.printf("Unable to set 'saturation': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_colorbar(s, cfg.getColorBar());
-  if (res != 0) {
-    Serial.printf("Unable to set 'colorbar': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_hmirror(s, cfg.getHMirror());
-  if (res != 0) {
-    Serial.printf("Unable to set 'hmirror': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_vflip(s, cfg.getVFlip());
-  if (res != 0) {
-    Serial.printf("Unable to set 'vflip': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_whitebal(s, cfg.getAwb());
-  if (res != 0) {
-    Serial.printf("Unable to set 'whitebal': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_awb_gain(s, cfg.getAwbGain());
-  if (res != 0) {
-    Serial.printf("Unable to set 'awb_gain': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_wb_mode(s, cfg.getWhiteBalanceMode());
-  if (res != 0) {
-    Serial.printf("Unable to set 'wb_mode': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_gain_ctrl(s, cfg.getAgc());
-  if (res != 0) {
-    Serial.printf("Unable to set 'gain_ctrl': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_agc_gain(s, cfg.getAgcGain());
-  if (res != 0) {
-    Serial.printf("Unable to set 'agc_gain': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_gainceiling(s, cfg.getGainCeiling());
-  if (res != 0) {
-    Serial.printf("Unable to set 'gainceiling': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_exposure_ctrl(s, cfg.getAec());
-  if (res != 0) {
-    Serial.printf("Unable to set 'exposure_ctrl': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_aec_value(s, cfg.getExposureValue());
-  if (res != 0) {
-    Serial.printf("Unable to set 'aec_value': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_aec2(s, cfg.getAec2());
-  if (res != 0) {
-    Serial.printf("Unable to set 'aec2': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_ae_level(s, cfg.getAeLevel());
-  if (res != 0) {
-    Serial.printf("Unable to set 'ae_level': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_dcw(s, cfg.getDcw());
-  if (res != 0) {
-    Serial.printf("Unable to set 'dcw': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_bpc(s, cfg.getBlackPixelCancellation());
-  if (res != 0) {
-    Serial.printf("Unable to set 'bpc': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_wpc(s, cfg.getWhitePixelCancellation());
-  if (res != 0) {
-    Serial.printf("Unable to set 'wpc': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_raw_gma(s, cfg.getRawGamma());
-  if (res != 0) {
-    Serial.printf("Unable to set 'raw_gma': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_lenc(s, cfg.getLensCorrection());
-  if (res != 0) {
-    Serial.printf("Unable to set 'lenc': return code %d\n", res);
-    return false;
-  }
-
-  res = s->set_special_effect(s, cfg.getSpecialEffect());
-  if (res != 0) {
-    Serial.printf("Unable to set 'special_effect': return code %d\n", res);
-    return false;
-  }
-
-  return true;
 }
 
 #ifdef WITH_WIFI
@@ -692,31 +452,9 @@ static void save_photo()
   if (cfg.getEnableBusyLed()) {
     digitalWrite(LED_GPIO_NUM, LOW);
   }
-#ifdef WITH_FLASH
-  if (cfg.getEnableFlash()) {
-    digitalWrite(FLASH_GPIO_NUM, HIGH);
-  }
-#endif // WITH_FLASH
 
-  // Take some shots to train the AGC/AWB
-  Serial.print("Training:");
-  for (int i=cfg.getTrainingShots(); i != 0; i--) {
-    Serial.printf(" %d", i);
-    fb = esp_camera_fb_get();
-    esp_camera_fb_return(fb);
-  }
-  Serial.println(" Done");
-
-  // Take picture
-  Serial.print("Taking picture... ");
-  fb = esp_camera_fb_get();
-
-  // Disable Flash
-#ifdef WITH_FLASH
-  if (cfg.getEnableFlash()) {
-    digitalWrite(FLASH_GPIO_NUM, LOW);
-  }
-#endif // WITH_FLASH
+  // Capture image
+  fb = camera_capture();
 
   // Generate filename
   time_t now = time(NULL);
@@ -763,7 +501,8 @@ static void save_photo()
   } else {
     Serial.printf("Failed\nCould not open file: %s\n", filename);
   }
-  esp_camera_fb_return(fb);
+
+  camera_fb_return(fb);
   
   if (cfg.getEnableBusyLed()) {
     digitalWrite(LED_GPIO_NUM, HIGH);
@@ -815,14 +554,7 @@ void loop()
       // Preserve non-volatile data
       nv_data.next_capture_time = next_capture_time;
 
-      // Turn off camera power
-      esp_camera_deinit();
-#if PWDN_GPIO_NUM >= 0
-      digitalWrite(PWDN_GPIO_NUM, HIGH); // esp_camera_deinit() doesn't power down camera...
-#endif // PWDN_GPIO_NUM >= 0
-#ifdef WITH_EVIL_CAM_PWR_SHUTDOWN
-      digitalWrite(CAM_PWR_GPIO_NUM, HIGH);
-#endif // WITH_CAM_PWR_SHUTDOWN
+      camera_deinit();
 
       // Lock pin states (need to be unlocked at init again)
 #ifdef WITH_FLASH

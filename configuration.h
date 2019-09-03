@@ -58,9 +58,6 @@ public:
     m_enable_busy_led(true),
     m_enable_flash(false),
     m_training_shots(0),
-    m_ssid(""),
-    m_password(""),
-    m_ntp_server("pool.ntp.org"),
     m_tzinfo("GMT0"),
     m_orientation(1),
     m_frame_size(FRAMESIZE_UXGA),
@@ -96,9 +93,6 @@ public:
   bool getEnableFlash() const { return m_enable_flash; }
   unsigned int getTrainingShots() const { return m_training_shots; };
 
-  const char *getSsid() const { return m_ssid; }
-  const char *getPassword() const { return m_password; }
-  const char *getNtpServer() const { return m_ntp_server; }
   const char *getTzInfo() const { return m_tzinfo; }
 
   uint8_t getOrientation() const { return m_orientation; }
@@ -146,10 +140,6 @@ private:
   unsigned int m_training_shots;
         /* Amount of images to take before the real shot to train the AGC/AWB */
 
-  // Wi-Fi/NTP options
-  char m_ssid[65]; /**< WiFi ssid to connect to */
-  char m_password[65]; /**< WiFi Password */
-  char m_ntp_server[65]; /**< NTP server address */
   char m_tzinfo[65]; /**< Timezone spec, see POSIX TZ(5) environment variable */
 
   // Exiv options

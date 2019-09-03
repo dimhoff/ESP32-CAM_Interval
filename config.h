@@ -8,12 +8,6 @@
 // Enable deep-sleep in between pictures
 #define WITH_SLEEP
 
-// Enable GNSS(GPS/Glonass/Gallileo/etc...) support
-//#define WITH_GNSS
-
-// Enable WiFi for NTP time synchronization
-#define WITH_WIFI
-
 // Enable Flash LED support
 #define WITH_FLASH
 

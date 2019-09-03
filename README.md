@@ -44,7 +44,25 @@ details see doc/power_consumption.md.
 
 Troubleshooting
 ---------------
+If the red LED starts flashing at a 1 second interval, this means an fatal
+software error occurred.
+
 The only way to troubleshoot issues is to connect to the serial port and check
 the logging.
 
 The serial port uses the following settings: 115200 Baud, 8N1.
+
+Notes
+-----
+The following things are important to know about the ESP32-CAM board hardware:
+
+ - The OV3640(/OV3660?) camera is NOT supported by the ESP32-CAM board. Because
+   the camera uses a different core voltage, 1.5 V instead of 1.2 V. And the
+   maximum Vdd I/O is only 3.0 V, instead of 3.3 V.
+ - Other cameras then the OV2640 are unlikely to work. Because the driver uses
+   the old parallel DVP bus to communicate to the camera. Most newer cameras
+   use the serial MIPI bus instead.
+ - GPIO12/HS_DATA2 pin is free for use in 1-bit SD-card bus mode. However, this
+   pin is used by the ESP-32s module as strapping pin to configure the VDD_SDIO
+   voltage, and thus must be low or floating at boot. See:
+   https://wiki.ai-thinker.com/esp32/spec/esp32s

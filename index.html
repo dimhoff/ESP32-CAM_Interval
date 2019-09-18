@@ -1,0 +1,817 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>ESP32-CAM Interval - Set-up Mode</title>
+        <!--
+Based on CameraWebServer.ino example
+Original Copyright: Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
+
+Copyright (c) 2019, David Imhoff <dimhoff.devel <at> gmail.com>
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the author nor the names of its contributors may
+      be used to endorse or promote products derived from this software
+      without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
+EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+        -->
+        <style>
+            body {
+                font-family: Arial,Helvetica,sans-serif;
+                background: #181818;
+                color: #EFEFEF;
+                font-size: 16px
+            }
+
+            h2 {
+                font-size: 18px
+            }
+
+            section.main {
+                display: flex
+            }
+
+            #menu,section.main {
+                flex-direction: column
+            }
+
+            #menu {
+                display: flex;
+                flex-wrap: nowrap;
+                min-width: 340px;
+                background: #363636;
+                padding: 8px;
+                border-radius: 4px;
+                margin-top: 10px;
+                margin-right: 10px;
+            }
+
+            #content {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: stretch
+            }
+
+            figure {
+                padding: 0px;
+                margin: 0;
+                -webkit-margin-before: 0;
+                margin-block-start: 0;
+                -webkit-margin-after: 0;
+                margin-block-end: 0;
+                -webkit-margin-start: 0;
+                margin-inline-start: 0;
+                -webkit-margin-end: 0;
+                margin-inline-end: 0
+            }
+
+            figure img {
+                display: block;
+                width: 100%;
+                height: auto;
+                border-radius: 4px;
+                margin-top: 8px;
+            }
+
+            @media (min-width: 800px) and (orientation:landscape) {
+                #content {
+                    display:flex;
+                    flex-wrap: nowrap;
+                    align-items: stretch
+                }
+
+                figure img {
+                    display: block;
+                    max-width: 100%;
+                    max-height: calc(100vh - 40px);
+                    width: auto;
+                    height: auto
+                }
+
+                figure {
+                    padding: 0 0 0 0px;
+                    margin: 0;
+                    -webkit-margin-before: 0;
+                    margin-block-start: 0;
+                    -webkit-margin-after: 0;
+                    margin-block-end: 0;
+                    -webkit-margin-start: 0;
+                    margin-inline-start: 0;
+                    -webkit-margin-end: 0;
+                    margin-inline-end: 0
+                }
+            }
+
+            section#buttons {
+                display: flex;
+                flex-wrap: nowrap;
+                justify-content: space-between
+            }
+
+            .input-group {
+                display: flex;
+                flex-wrap: nowrap;
+                line-height: 22px;
+                margin: 5px 0
+            }
+
+            .input-group>label {
+                display: inline-block;
+                padding-right: 10px;
+                min-width: 47%
+            }
+
+            .input-group input,.input-group select {
+                flex-grow: 1
+            }
+
+            .range-max,.range-min {
+                display: inline-block;
+                padding: 0 5px
+            }
+
+            button {
+                display: block;
+                margin: 5px;
+                padding: 0 12px;
+                border: 0;
+                line-height: 28px;
+                cursor: pointer;
+                color: #fff;
+                background: #ff3034;
+                border-radius: 5px;
+                font-size: 16px;
+                outline: 0
+            }
+
+            button:hover {
+                background: #ff494d
+            }
+
+            button:active {
+                background: #f21c21
+            }
+
+            button.disabled {
+                cursor: default;
+                background: #a0a0a0
+            }
+
+            input[type=range] {
+                -webkit-appearance: none;
+                width: 100%;
+                height: 22px;
+                background: #363636;
+                cursor: pointer;
+                margin: 0
+            }
+
+            input[type=range]:focus {
+                outline: 0
+            }
+
+            input[type=range]::-webkit-slider-runnable-track {
+                width: 100%;
+                height: 2px;
+                cursor: pointer;
+                background: #EFEFEF;
+                border-radius: 0;
+                border: 0 solid #EFEFEF
+            }
+
+            input[type=range]::-webkit-slider-thumb {
+                border: 1px solid rgba(0,0,30,0);
+                height: 22px;
+                width: 22px;
+                border-radius: 50px;
+                background: #ff3034;
+                cursor: pointer;
+                -webkit-appearance: none;
+                margin-top: -11.5px
+            }
+
+            input[type=range]:focus::-webkit-slider-runnable-track {
+                background: #EFEFEF
+            }
+
+            input[type=range]::-moz-range-track {
+                width: 100%;
+                height: 2px;
+                cursor: pointer;
+                background: #EFEFEF;
+                border-radius: 0;
+                border: 0 solid #EFEFEF
+            }
+
+            input[type=range]::-moz-range-thumb {
+                border: 1px solid rgba(0,0,30,0);
+                height: 22px;
+                width: 22px;
+                border-radius: 50px;
+                background: #ff3034;
+                cursor: pointer
+            }
+
+            input[type=range]::-ms-track {
+                width: 100%;
+                height: 2px;
+                cursor: pointer;
+                background: 0 0;
+                border-color: transparent;
+                color: transparent
+            }
+
+            input[type=range]::-ms-fill-lower {
+                background: #EFEFEF;
+                border: 0 solid #EFEFEF;
+                border-radius: 0
+            }
+
+            input[type=range]::-ms-fill-upper {
+                background: #EFEFEF;
+                border: 0 solid #EFEFEF;
+                border-radius: 0
+            }
+
+            input[type=range]::-ms-thumb {
+                border: 1px solid rgba(0,0,30,0);
+                height: 22px;
+                width: 22px;
+                border-radius: 50px;
+                background: #ff3034;
+                cursor: pointer;
+                height: 2px
+            }
+
+            input[type=range]:focus::-ms-fill-lower {
+                background: #EFEFEF
+            }
+
+            input[type=range]:focus::-ms-fill-upper {
+                background: #363636
+            }
+
+            .switch {
+                display: block;
+                position: relative;
+                line-height: 22px;
+                font-size: 16px;
+                height: 22px
+            }
+
+            .switch input {
+                outline: 0;
+                opacity: 0;
+                width: 0;
+                height: 0
+            }
+
+            .slider {
+                width: 50px;
+                height: 22px;
+                border-radius: 22px;
+                cursor: pointer;
+                background-color: grey
+            }
+
+            .slider,.slider:before {
+                display: inline-block;
+                transition: .4s
+            }
+
+            .slider:before {
+                position: relative;
+                content: "";
+                border-radius: 50%;
+                height: 16px;
+                width: 16px;
+                left: 4px;
+                top: 3px;
+                background-color: #fff
+            }
+
+            input:checked+.slider {
+                background-color: #ff3034
+            }
+
+            input:checked+.slider:before {
+                -webkit-transform: translateX(26px);
+                transform: translateX(26px)
+            }
+
+            select {
+                border: 1px solid #363636;
+                font-size: 14px;
+                height: 22px;
+                outline: 0;
+                border-radius: 5px
+            }
+
+            .image-container {
+                position: relative;
+                min-width: 160px
+            }
+
+            .hidden {
+                display: none
+            }
+
+            #rolling {
+              position: fixed;
+              left: 0;
+              right: 0;
+              top: 0;
+              bottom: 0;
+              background-color: rgba(0, 0, 0, 70%);
+              text-align: center;
+            }
+            #rollingMsg {
+              background-color: white;
+              padding: 10px;
+              margin: auto;
+              width: 500px;
+              border-radius: 0 0 10px 10px;
+              color: black;
+            }
+        </style>
+    </head>
+    <body>
+        <section class="main">
+            <div id="content">
+                <div id="sidebar">
+                    <nav id="menu">
+                        <div class="input-group" id="interval-group">
+                            <label for="interval">Capture Interval (msec.)</label>
+                            <input type="number" id="interval" min="1" value="60" class="default-action">
+                        </div>
+                        <div class="input-group" id="timezone-group">
+                            <label for="timezone">Timezone</label>
+                            <select id="timezone" class="default-action">
+                            </select>
+                        </div>
+                        <div class="input-group" id="enable_busy_led-group">
+                            <label for="enable_busy_led">Enable Busy LED</label>
+                            <div class="switch">
+                                <input id="enable_busy_led" type="checkbox" class="default-action" checked>
+                                <label class="slider" for="enable_busy_led"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="enable_flash-group">
+                            <label for="enable_flash">Enable Flash LED</label>
+                            <div class="switch">
+                                <input id="enable_flash" type="checkbox" class="default-action">
+                                <label class="slider" for="enable_flash"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="training_shots-group">
+                            <label for="training_shots">Training shots</label>
+                            <div class="range-min">0</div>
+                            <input type="range" id="training_shots" min="0" max="25" value="0" class="default-action">
+                            <div class="range-max">25</div>
+                        </div>
+                        <div class="input-group" id="rotation-group">
+                            <label for="rotation">Rotation</label>
+                            <select id="rotation" class="default-action">
+                                <option value="0" selected="selected">0&deg;</option>
+                                <option value="90">90&deg; CW</option>
+                                <option value="180">180&deg;</option>
+                                <option value="270">90&deg; CCW</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="framesize-group">
+                            <label for="framesize">Resolution</label>
+                            <select id="framesize" class="default-action">
+                                <option value="1600x1200" selected="selected">UXGA(1600x1200)</option>
+                                <option value="1280x1024">SXGA(1280x1024)</option>
+                                <option value="1024x768">XGA(1024x768)</option>
+                                <option value="800x600">SVGA(800x600)</option>
+                                <option value="640x480">VGA(640x480)</option>
+                                <option value="400x296">CIF(400x296)</option>
+                                <option value="320x240">QVGA(320x240)</option>
+                                <option value="240x176">HQVGA(240x176)</option>
+                                <option value="160x120">QQVGA(160x120)</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="quality-group">
+                            <label for="quality">Quality</label>
+                            <div class="range-min">10</div>
+                            <input type="range" id="quality" min="10" max="63" value="10" class="default-action">
+                            <div class="range-max">63</div>
+                        </div>
+                        <div class="input-group" id="brightness-group">
+                            <label for="brightness">Brightness</label>
+                            <div class="range-min">-2</div>
+                            <input type="range" id="brightness" min="-2" max="2" value="0" class="default-action">
+                            <div class="range-max">2</div>
+                        </div>
+                        <div class="input-group" id="contrast-group">
+                            <label for="contrast">Contrast</label>
+                            <div class="range-min">-2</div>
+                            <input type="range" id="contrast" min="-2" max="2" value="0" class="default-action">
+                            <div class="range-max">2</div>
+                        </div>
+                        <div class="input-group" id="saturation-group">
+                            <label for="saturation">Saturation</label>
+                            <div class="range-min">-2</div>
+                            <input type="range" id="saturation" min="-2" max="2" value="0" class="default-action">
+                            <div class="range-max">2</div>
+                        </div>
+                        <div class="input-group" id="special_effect-group">
+                            <label for="special_effect">Special Effect</label>
+                            <select id="special_effect" class="default-action">
+                                <option value="none" selected="selected">No Effect</option>
+                                <option value="negative">Negative</option>
+                                <option value="grayscale">Grayscale</option>
+                                <option value="red tint">Red Tint</option>
+                                <option value="green tint">Green Tint</option>
+                                <option value="blue tint">Blue Tint</option>
+                                <option value="sepia">Sepia</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="awb-group">
+                            <label for="awb">AWB</label>
+                            <div class="switch">
+                                <input id="awb" type="checkbox" class="default-action" checked="checked">
+                                <label class="slider" for="awb"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="awb_gain-group">
+                            <label for="awb_gain">AWB Gain</label>
+                            <div class="switch">
+                                <input id="awb_gain" type="checkbox" class="default-action" checked="checked">
+                                <label class="slider" for="awb_gain"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="wb_mode-group">
+                            <label for="wb_mode">WB Mode</label>
+                            <select id="wb_mode" class="default-action">
+                                <option value="auto" selected="selected">Auto</option>
+                                <option value="sunny">Sunny</option>
+                                <option value="cloudy">Cloudy</option>
+                                <option value="office">Office</option>
+                                <option value="home">Home</option>
+                            </select>
+                        </div>
+                        <div class="input-group" id="aec-group">
+                            <label for="aec">AEC SENSOR</label>
+                            <div class="switch">
+                                <input id="aec" type="checkbox" class="default-action" checked="checked">
+                                <label class="slider" for="aec"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="aec2-group">
+                            <label for="aec2">AEC DSP</label>
+                            <div class="switch">
+                                <input id="aec2" type="checkbox" class="default-action" checked="checked">
+                                <label class="slider" for="aec2"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="ae_level-group">
+                            <label for="ae_level">AE Level</label>
+                            <div class="range-min">-2</div>
+                            <input type="range" id="ae_level" min="-2" max="2" value="0" class="default-action">
+                            <div class="range-max">2</div>
+                        </div>
+                        <div class="input-group" id="aec_value-group">
+                            <label for="aec_value">Exposure</label>
+                            <div class="range-min">0</div>
+                            <input type="range" id="aec_value" min="0" max="1200" value="204" class="default-action">
+                            <div class="range-max">1200</div>
+                        </div>
+                        <div class="input-group" id="agc-group">
+                            <label for="agc">AGC</label>
+                            <div class="switch">
+                                <input id="agc" type="checkbox" class="default-action" checked="checked">
+                                <label class="slider" for="agc"></label>
+                            </div>
+                        </div>
+                        <div class="input-group hidden" id="agc_gain-group">
+                            <label for="agc_gain">Gain</label>
+                            <div class="range-min">1x</div>
+                            <input type="range" id="agc_gain" min="1" max="32" value="5" class="default-action">
+                            <div class="range-max">32x</div>
+                        </div>
+                        <div class="input-group" id="gainceiling-group">
+                            <label for="gainceiling">Gain Ceiling</label>
+                            <div class="range-min">2x</div>
+                            <input type="range" id="gainceiling" min="0" max="6" value="0" class="default-action">
+                            <div class="range-max">128x</div>
+                        </div>
+                        <div class="input-group" id="bpc-group">
+                            <label for="bpc">BPC</label>
+                            <div class="switch">
+                                <input id="bpc" type="checkbox" class="default-action">
+                                <label class="slider" for="bpc"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="wpc-group">
+                            <label for="wpc">WPC</label>
+                            <div class="switch">
+                                <input id="wpc" type="checkbox" class="default-action" checked="checked">
+                                <label class="slider" for="wpc"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="raw_gma-group">
+                            <label for="raw_gma">Raw GMA</label>
+                            <div class="switch">
+                                <input id="raw_gma" type="checkbox" class="default-action" checked="checked">
+                                <label class="slider" for="raw_gma"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="lenc-group">
+                            <label for="lenc">Lens Correction</label>
+                            <div class="switch">
+                                <input id="lenc" type="checkbox" class="default-action" checked="checked">
+                                <label class="slider" for="lenc"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="hmirror-group">
+                            <label for="hmirror">H-Mirror</label>
+                            <div class="switch">
+                                <input id="hmirror" type="checkbox" class="default-action" checked="checked">
+                                <label class="slider" for="hmirror"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="vflip-group">
+                            <label for="vflip">V-Flip</label>
+                            <div class="switch">
+                                <input id="vflip" type="checkbox" class="default-action" checked="checked">
+                                <label class="slider" for="vflip"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="dcw-group">
+                            <label for="dcw">DCW (Downsize EN)</label>
+                            <div class="switch">
+                                <input id="dcw" type="checkbox" class="default-action" checked="checked">
+                                <label class="slider" for="dcw"></label>
+                            </div>
+                        </div>
+                        <div class="input-group" id="colorbar-group">
+                            <label for="colorbar">Color Bar</label>
+                            <div class="switch">
+                                <input id="colorbar" type="checkbox" class="default-action">
+                                <label class="slider" for="colorbar"></label>
+                            </div>
+                        </div>
+                        <button id="btnCapture">Capture Image</button>
+                        <section id="buttons">
+                            <button id="btnCancel">Cancel &amp; Restart</button>
+                            <button id="btnApply">Apply &amp; Restart</button>
+                        </section>
+                    </nav>
+                </div>
+                <figure>
+                    <div id="stream-container" class="image-container">
+                        <img id="stream" src="image.jpg">
+                    </div>
+                </figure>
+            </div>
+        </section>
+        <div id="rolling" class="hidden">
+          <div id="rollingMsg"></div>
+        </div>
+        <script>
+"use strict";
+
+function hide(el) {
+  el.classList.add('hidden');
+}
+function show(el) {
+  el.classList.remove('hidden');
+}
+
+function disable(el) {
+  el.classList.add('disabled');
+  el.disabled = true;
+}
+
+function enable(el) {
+  el.classList.remove('disabled');
+  el.disabled = false;
+}
+
+function updateDOM(el) {
+  if (el.id === "aec") {
+    const exposure = document.getElementById('aec_value-group');
+    el.checked ? hide(exposure) : show(exposure);
+  } else if (el.id === "agc") {
+    const gainCeiling = document.getElementById('gainceiling-group');
+    const agcGain = document.getElementById('agc_gain-group');
+    if (el.checked) {
+      show(gainCeiling);
+      hide(agcGain);
+    } else {
+      hide(gainCeiling);
+      show(agcGain);
+    }
+  } else if (el.id === "awb_gain") {
+    const wb = document.getElementById('wb_mode-group');
+    el.checked ? show(wb) : hide(wb);
+  } else if (el.id === "rotation") {
+    // NOTE: The images are rotated using EXIF orientation tag. The image used
+    // for the set-up mode do not include the EXIF, so simulate this with CSS.
+    const image = document.getElementById('stream');
+    image.style.transform = "rotate(" + el.value + "deg)";
+  }
+}
+
+function updateValue(el, value, updateRemote) {
+  updateRemote = updateRemote == null ? true : updateRemote;
+  let initialValue;
+  if (el.type === 'checkbox') {
+    initialValue = el.checked;
+    value = !!value;
+    el.checked = value;
+  } else {
+    initialValue = el.value;
+    el.value = value;
+  }
+
+  if (updateRemote && initialValue !== value) {
+    updateConfig(el);
+  } else if(!updateRemote){
+    updateDOM(el);
+  }
+}
+
+function updateConfig (el) {
+  const key = el.id;
+
+  let value;
+  switch (el.type) {
+    case 'checkbox':
+      value = el.checked ? 1 : 0;
+      break;
+    case 'number':
+    case 'range':
+    case 'select-one':
+      value = el.value;
+      break;
+    case 'button':
+    case 'submit':
+      value = '1';
+      break;
+    default:
+      return;
+  }
+
+  const params = new FormData();
+  params.append("key", key);
+  params.append("val", value);
+
+  fetch('set', {
+      method: 'POST',
+      body: params
+    }).then((response) => {
+      if (response.status == 200) {
+        response.json().then((res) => {
+          if (res.success) {
+            console.log(`Successfully set option '${key}' to '${value}'`);
+          } else {
+            alert(`Failed to update option '${key}': ${res.error}`);
+          }
+        });
+      } else {
+        alert(`Failed to update option '${key}': ${response.statusText}`);
+      }
+    }).catch((err) => {
+      alert(`Failed to update option '${key}': ${err}`);
+    });
+}
+
+async function applyAndRestart() {
+  try {
+    const response = await fetch('apply');
+    if (response.status != 200) {
+      throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+    }
+
+    const res = await response.json();
+    if (!res.success) {
+      throw new Error(res.error);
+    }
+  } catch(err) {
+    alert('Failed to apply configuration: ' + err);
+    return;
+  }
+
+  // Block UI and show message about restart
+  document.getElementById("rollingMsg").innerText = "Configuration applied. Camera is now active.";
+  show(document.getElementById("rolling"));
+
+  // Restart, no response will be received...
+  fetch('restart');
+}
+
+async function init() {
+  // Set system clock
+  const params = new FormData();
+  params.append("time", Date.now());
+
+  try {
+    const response = await fetch('set_time', {
+      method: 'POST',
+      body: params
+    });
+    if (response.status != 200) {
+      throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+    }
+
+    const res = await response.json();
+    if (!res.success) {
+      throw new Error(res.error);
+    }
+  } catch(err) {
+    alert('Failed to set system clock: ' + err);
+  }
+
+  // Load timezones
+  try {
+    const response = await fetch('tzinfo.json');
+    if (response.status != 200) {
+      throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+    }
+
+    const timezones = await response.json();
+
+    const tzSelect = document.getElementById('timezone');
+    tzSelect.options.length = 0;
+    for (let key of Object.keys(timezones).sort()) {
+       let newOption = document.createElement('option');
+
+       newOption.value = timezones[key];
+       newOption.text = key;
+
+       tzSelect.add(newOption);
+    }
+  } catch(err) {
+    alert('Failed to get timezone list: ' + err);
+  }
+
+  // Load current config
+  try {
+    const response = await fetch('config');
+    if (response.status != 200) {
+      throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+    }
+    const cfg = await response.json();
+
+    for (let el of document.querySelectorAll('.default-action')) {
+      updateValue(el, cfg[el.id], false);
+    }
+  } catch(err) {
+    alert('Failed to get current configuration from device: ' + err);
+  }
+
+  const view = document.getElementById('stream');
+  const viewContainer = document.getElementById('stream-container');
+  const stillButton = document.getElementById('btnCapture');
+  const applyButton = document.getElementById('btnApply');
+  const cancelButton = document.getElementById('btnCancel');
+
+  // Attach actions to buttons
+  stillButton.onclick = () => {
+    // NOTE: Appended time is only for the browser to force a reload.
+    view.src = `image.jpg?${Date.now()}`;
+  };
+  applyButton.addEventListener('click', applyAndRestart);
+
+  cancelButton.addEventListener('click', (evt) => {
+    // Block UI and show message about restart
+    document.getElementById("rollingMsg").innerText = "Configuration cancelled. Camera is now active.";
+    show(document.getElementById("rolling"));
+
+    // Restart, no response will be received...
+    fetch('restart');
+  });
+
+  // Attach default on change action
+  for (let el of document.querySelectorAll('.default-action')) {
+    el.onchange = () => {
+      updateConfig(el);
+      updateDOM(el);
+    };
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+        </script>
+    </body>
+</html>

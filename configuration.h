@@ -30,6 +30,8 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+
+#include "WString.h"
 #include "esp_camera.h"
 
 #define CONFIG_PATH "/sdcard/camera.cfg"
@@ -87,6 +89,9 @@ public:
   {};
 
   bool loadConfig();
+  bool saveConfig();
+
+  String configAsJSON() const;
 
   unsigned int getCaptureInterval() const { return m_capture_interval; }
   bool getEnableBusyLed() const { return m_enable_busy_led; }

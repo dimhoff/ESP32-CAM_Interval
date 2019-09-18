@@ -35,12 +35,10 @@
 #include "io_defs.h"
 #include "configuration.h"
 
-static bool camera_set_config(void);
-
 /**
  * Configure the camera based on current system configuration
  */
-static bool camera_set_config(void)
+bool camera_reconfigure()
 {
   int res;
   sensor_t *s = esp_camera_sensor_get();
@@ -198,6 +196,7 @@ bool camera_init()
   camera_config_t config;
 
   // Enable camera 1.2 and 2.8 Volt
+  // TODO: this pin is no longer switching the PSU's if WITH_CAM_PWDN PCB PATCH is applied.
   rtc_gpio_hold_dis(gpio_num_t(CAM_PWR_GPIO_NUM)); // TODO: move to after init to prevent glitch???
   pinMode(CAM_PWR_GPIO_NUM, OUTPUT);
   digitalWrite(CAM_PWR_GPIO_NUM, LOW);
@@ -249,7 +248,7 @@ bool camera_init()
     return false;
   }
 
-  return camera_set_config();
+  return camera_reconfigure();
 }
 
 void camera_deinit()
@@ -271,6 +270,7 @@ camera_fb_t *camera_capture()
 #ifdef WITH_FLASH
   if (cfg.getEnableFlash()) {
     digitalWrite(FLASH_GPIO_NUM, HIGH);
+    delay(100);
   }
 #endif // WITH_FLASH
 

@@ -39,6 +39,11 @@ bool camera_init();
 void camera_deinit();
 
 /**
+ * Configure the camera based on current system configuration
+ */
+bool camera_reconfigure();
+
+/**
  * Capture image
  */
 camera_fb_t *camera_capture();

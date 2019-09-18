@@ -10,6 +10,12 @@ Use the Arduino IDE with ESP32 support to compile the firmware.
 
 The config.h file offers some compile time customizations.
 
+Before compiling the html_content.cpp file needs to be generated. Do this by
+executing the gen_html_content.sh script.
+
+The tzinfo.json file can be updated with the tool from
+https://github.com/pgurenko/tzinfo. But this is normally not necessary.
+
 Picture Names
 -------------
 Every time the device boots a new directory is created on the SD card. The
@@ -19,8 +25,19 @@ is replaced by a free sequence number. Pictures are stored to this directory.
 The picture filenames contain the date and time of taking the pictures. If the
 time is not set, the clock will start at UNIX epoch, i.e. 01-01-1970 00:00:00.
 
-Configuration
--------------
+Set-up mode
+-----------
+When the camera is powered up it will go into set-up mode. In this mode the
+camera has an open Wi-Fi access point and a web server. Connect to the access
+point and go to http://camera.local to configure the camera and enable it.
+
+Upon opening the set-up mode web site the camera's clock is automatically
+synchronized to the browsers clock.
+
+In set-up mode the LED will blink at a 1 second interval.
+
+Configuration file
+------------------
 To configure the software create a file named camera.cfg in the root
 directory of the SD card. The configuration file is text based containing one
 configuration option per line. Configuration options have the format
@@ -44,7 +61,7 @@ details see doc/power_consumption.md.
 
 Troubleshooting
 ---------------
-If the red LED starts flashing at a 1 second interval, this means an fatal
+If the red LED is flashing two short pulses every 2 seconds, this means an fatal
 software error occurred.
 
 The only way to troubleshoot issues is to connect to the serial port and check

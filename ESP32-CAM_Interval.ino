@@ -54,6 +54,9 @@
 #include "camera.h"
 #include "configuration.h"
 #include "exif.h"
+#include "setup_mode.h"
+
+#define ARRAY_SIZE(a) (sizeof(a)/sizeof((a)[0]))
 
 // Time unit defines
 #define MSEC_AS_USEC (1000L)
@@ -67,9 +70,6 @@
 // Wake-up this many micro seconds before capture time to allow initialization.
 #define WAKE_USEC_EARLY (6 * SEC_AS_USEC)
 
-// Minimal unix time for clock to be considered valid.
-#define NOT_BEFORE_TIME 1564437734
-
 // Timelapse directory name format: /sdcard/timelapseXXXX/
 #define CAPTURE_DIR_PREFIX "timelapse"
 #define CAPTURE_DIR_PREFIX_LEN 9
@@ -80,6 +80,7 @@ RTC_DATA_ATTR struct {
 } nv_data;
 
 // Globals
+static bool setup_mode = false;
 static char capture_path[8 + CAPTURE_DIR_PREFIX_LEN + 4 + 1];
 static struct timeval capture_interval_tv;
 static struct timeval next_capture_time;
@@ -99,6 +100,20 @@ void setup()
   // Configure red LED
   pinMode(LED_GPIO_NUM, OUTPUT);
   digitalWrite(LED_GPIO_NUM, HIGH);
+
+  // Check if set-up button is pressed
+  if (esp_reset_reason() == ESP_RST_POWERON) {
+#ifdef WITH_SETUP_MODE_BUTTON
+    pinMode(BTN_GPIO_NUM, INPUT_PULLUP);
+    delay(10);
+    // TODO: Do some debouncing/filtering
+    if (digitalRead(BTN_GPIO_NUM) == LOW) {
+      setup_mode = true;
+    }
+#else // WITH_SETUP_MODE_BUTTON
+    setup_mode = true;
+#endif // WITH_SETUP_MODE_BUTTON
+  }
 
   // Init SD Card
   if (!init_sdcard()) {
@@ -120,11 +135,19 @@ void setup()
 
   // Load config file
   if (!cfg.loadConfig()) {
-    goto fail;
+    if (setup_mode) {
+      Serial.println("Ignoring bad configuration file because in set-up mode");
+    } else {
+      goto fail;
+    }
   }
   update_exif_from_cfg(cfg);
   capture_interval_tv.tv_sec = cfg.getCaptureInterval() / 1000;
   capture_interval_tv.tv_usec = (cfg.getCaptureInterval() % 1000) * 1000;
+
+  // Set timezone
+  setenv("TZ", cfg.getTzInfo(), 1);
+  tzset();
 
   // Get current Time
   {
@@ -135,14 +158,21 @@ void setup()
   // Inititialize next capture time
   if (is_wakeup) {
     next_capture_time = nv_data.next_capture_time;
+    Serial.printf("Next image at: %s", ctime(&next_capture_time.tv_sec));
   } else {
     (void) gettimeofday(&next_capture_time, NULL);
   }
-  Serial.printf("Next image at: %s", ctime(&next_capture_time.tv_sec));
 
-  // Initialize capture directory
-  if (!init_capture_dir(is_wakeup)) {
-    goto fail;
+  if (setup_mode) {
+    // Set-up Mode
+    if (!setup_mode_init()) {
+      goto fail;
+    }
+  } else {
+    // Initialize capture directory
+    if (!init_capture_dir(is_wakeup)) {
+      goto fail;
+    }
   }
 
   // camera init
@@ -150,17 +180,28 @@ void setup()
     goto fail;
   }
 
-  Serial.println("--- Initialization Done ---");
+  if (setup_mode) {
+    Serial.println("--- Initialization Done, Entering Setup Mode ---");
+  } else {
+    Serial.println("--- Initialization Done ---");
+  }
 
   return;
 
 fail:
   // TODO: write dead program for ULP to blink led while in deep sleep, instead of waste power with main CPU
   while (true) {
-    digitalWrite(LED_GPIO_NUM, LOW);
-    delay(1000);
-    digitalWrite(LED_GPIO_NUM, HIGH);
-    delay(1000);
+    const static long blink_sequence[] = { 500, 500 };
+    static long blink_last = 0;
+    static uint8_t blink_idx = 0;
+
+    // Blink LED
+    long now = millis();
+    if (now - blink_last > blink_sequence[blink_idx]) {
+      blink_idx = (blink_idx + 1) % ARRAY_SIZE(blink_sequence);
+      blink_last = now;
+      digitalWrite(LED_GPIO_NUM, (blink_idx & 1) ? HIGH : LOW);
+    }
   }
 }
 
@@ -330,6 +371,11 @@ static void save_photo()
 
 void loop()
 {
+  if (setup_mode) {
+    setup_mode_loop();
+    return;
+  }
+
   // Take picture if interval passed
   // NOTE: This breaks if clock jumps are introduced. Make sure to use
   // adjtime().

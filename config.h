@@ -28,7 +28,19 @@
 // Flash LED connected to SD DATA1 line.
 //#define WITH_SD_4BIT
 
+// Require Button to enter Set-up mode
+// Normally Set-up mode is automatically entered upon first boot. However if
+// the camera is in a privacy sensitive location this also mean that if the
+// camera reboots accidentally, it will start an open Wi-Fi APthrough which you
+// can see the camera images. In these cases you can use a button/switch
+// between GPIO12 and ground. Only if the button is pressed upon first boot the
+// camera will go into set-up mode.
+// #define WITH_SETUP_MODE_BUTTON
+
 // Version number of firmware
 #define VERSION_STR "0.1"
+
+// Minimal unix time for clock to be considered valid.
+#define NOT_BEFORE_TIME 1568184212
 
 #endif // __CONFIG_H__

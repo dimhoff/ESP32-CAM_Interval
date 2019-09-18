@@ -40,6 +40,57 @@ static bool parse_bool(const char *in, bool *out);
 
 Configuration cfg;
 
+static const PROGMEM char * frame_size_strings[] = {
+"160x120",
+"128x160",
+"176x144",
+"240x176",
+"320x240",
+"400x296",
+"640x480",
+"800x600",
+"1024x768",
+"1280x1024",
+"1600x1200",
+"2048x1536"
+};
+static const PROGMEM char * wb_mode_strings[] = {
+"auto",
+"sunny",
+"cloudy",
+"office",
+"home"
+};
+static const PROGMEM char * special_effect_strings[] = {
+"none",
+"negative",
+"grayscale",
+"red tint",
+"green tint",
+"blue tint",
+"sepia"
+};
+
+static int orientation_to_rotation(int orientation) {
+  int rotation = 0;
+  switch (orientation) {
+  case 6:
+    rotation = 90;
+    break;
+  case 3:
+    rotation = 180;
+    break;
+  case 8:
+    rotation = 270;
+    break;
+  case 1:
+  default:
+    rotation = 0;
+    break;
+  }
+  return rotation;
+}
+
 /**
  * Parse base-10 interger string
  *
@@ -383,6 +434,46 @@ int Configuration::config_set(const char *key, const char *value)
   return 0;
 }
 
+String Configuration::configAsJSON() const
+{
+  String json;
+
+  json += "{";
+  json += "\"interval\": " + String(m_capture_interval);
+  json += ",\"enable_busy_led\": " + String(m_enable_busy_led);
+  json += ",\"enable_flash\": " + String(m_enable_flash);
+  json += ",\"training_shots\": " + String(m_training_shots);
+  json += ",\"timezone\": \"" + String(m_tzinfo) + '"';
+  json += ",\"rotation\": " + String(orientation_to_rotation(m_orientation));
+  json += ",\"framesize\": \"" + String(frame_size_strings[m_frame_size]) + '"';
+  json += ",\"quality\": " + String(m_quality);
+  json += ",\"contrast\": " + String(m_contrast);
+  json += ",\"brightness\": " + String(m_brightness);
+  json += ",\"saturation\": " + String(m_saturation);
+  json += ",\"colorbar\": " + String(m_colorbar);
+  json += ",\"hmirror\": " + String(m_hmirror);
+  json += ",\"vflip\": " + String(m_vflip);
+  json += ",\"awb\": " + String(m_awb);
+  json += ",\"awb_gain\": " + String(m_awb_gain);
+  json += ",\"wb_mode\": \"" + String(wb_mode_strings[m_wb_mode]) + '"';
+  json += ",\"agc\": " + String(m_agc);
+  json += ",\"agc_gain\": " + String(m_agc_gain+1);
+  json += ",\"gainceiling\": " + String(m_gainceiling);
+  json += ",\"aec\": " + String(m_aec);
+  json += ",\"aec_value\": " + String(m_aec_value);
+  json += ",\"aec2\": " + String(m_aec2);
+  json += ",\"ae_level\": " + String(m_ae_level);
+  json += ",\"dcw\": " + String(m_dcw);
+  json += ",\"bpc\": " + String(m_bpc);
+  json += ",\"wpc\": " + String(m_wpc);
+  json += ",\"raw_gma\": " + String(m_raw_gma);
+  json += ",\"lenc\": " + String(m_lenc);
+  json += ",\"special_effect\": \"" + String(special_effect_strings[m_special_effect]) + '"';
+  json += "}";
+
+  return json;
+}
+
 static int config_set_wrapper(const char *key, const char *value) {
   return cfg.config_set(key, value);
 }
@@ -405,6 +496,58 @@ bool Configuration::loadConfig()
     }
   } else {
     Serial.println("No config found, using defaults.");
+  }
+
+  return true;
+}
+
+bool Configuration::saveConfig()
+{
+  // TODO: switch from bool return to exceptions?
+  // TODO: backup old config
+
+  FILE *file = fopen(CONFIG_PATH, "w");
+  if (file != NULL)  {
+    Serial.println("Saving config... ");
+
+    // TODO: Only write values that differ from default
+    fputs("# ESP32-CAM interval - Configuration file\n", file);
+    fputs("# Configuration Generated from Set-up mode\n", file);
+    fputs("interval = ", file); fputs(String(m_capture_interval).c_str(), file); fputc('\n', file);
+    fputs("enable_busy_led = ", file); fputs(String(m_enable_busy_led).c_str(), file); fputc('\n', file);
+    fputs("enable_flash = ", file); fputs(String(m_enable_flash).c_str(), file); fputc('\n', file);
+    fputs("training_shots = ", file); fputs(String(m_training_shots).c_str(), file); fputc('\n', file);
+    fputs("timezone = ", file); fputs(m_tzinfo, file); fputc('\n', file);
+    fputs("rotation = ", file); fputs(String(orientation_to_rotation(m_orientation)).c_str(), file); fputc('\n', file);
+    fputs("framesize = ", file); fputs(frame_size_strings[m_frame_size], file); fputc('\n', file);
+    fputs("quality = ", file); fputs(String(m_quality).c_str(), file); fputc('\n', file);
+    fputs("contrast = ", file); fputs(String(m_contrast).c_str(), file); fputc('\n', file);
+    fputs("brightness = ", file); fputs(String(m_brightness).c_str(), file); fputc('\n', file);
+    fputs("saturation = ", file); fputs(String(m_saturation).c_str(), file); fputc('\n', file);
+    fputs("colorbar = ", file); fputs(String(m_colorbar).c_str(), file); fputc('\n', file);
+    fputs("hmirror = ", file); fputs(String(m_hmirror).c_str(), file); fputc('\n', file);
+    fputs("vflip = ", file); fputs(String(m_vflip).c_str(), file); fputc('\n', file);
+    fputs("awb = ", file); fputs(String(m_awb).c_str(), file); fputc('\n', file);
+    fputs("awb_gain = ", file); fputs(String(m_awb_gain).c_str(), file); fputc('\n', file);
+    fputs("wb_mode = ", file); fputs(wb_mode_strings[m_wb_mode], file); fputc('\n', file);
+    fputs("agc = ", file); fputs(String(m_agc).c_str(), file); fputc('\n', file);
+    fputs("agc_gain = ", file); fputs(String(m_agc_gain+1).c_str(), file); fputc('\n', file);
+    fputs("gainceiling = ", file); fputs(String(m_gainceiling).c_str(), file); fputc('\n', file);
+    fputs("aec = ", file); fputs(String(m_aec).c_str(), file); fputc('\n', file);
+    fputs("aec_value = ", file); fputs(String(m_aec_value).c_str(), file); fputc('\n', file);
+    fputs("aec2 = ", file); fputs(String(m_aec2).c_str(), file); fputc('\n', file);
+    fputs("ae_level = ", file); fputs(String(m_ae_level).c_str(), file); fputc('\n', file);
+    fputs("dcw = ", file); fputs(String(m_dcw).c_str(), file); fputc('\n', file);
+    fputs("bpc = ", file); fputs(String(m_bpc).c_str(), file); fputc('\n', file);
+    fputs("wpc = ", file); fputs(String(m_wpc).c_str(), file); fputc('\n', file);
+    fputs("raw_gma = ", file); fputs(String(m_raw_gma).c_str(), file); fputc('\n', file);
+    fputs("lenc = ", file); fputs(String(m_lenc).c_str(), file); fputc('\n', file);
+    fputs("special_effect = ", file); fputs(special_effect_strings[m_special_effect], file); fputc('\n', file);
+
+    fclose(file);
+  } else {
+    Serial.println("Unable to open config file for writing");
+    return false;
   }
 
   return true;

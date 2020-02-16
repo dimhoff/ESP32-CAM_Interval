@@ -1,5 +1,10 @@
 ESP32-CAM Interval
 ==================
+
+__Status Update:__ Since I bought another stock camera that matches my needs I
+no longer actively develop this project.
+
+
 This firmware turns a ESP32-CAM module into a low power time-lapse camera.
 Taking pictures at a set interval, and storing them to SD card. In between
 captures the device will go into deep sleep mode to save battery power.

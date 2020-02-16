@@ -1,4 +1,5 @@
 # TODO's
+ - Switch to Seconds for interval configuration in config file and set-up mode
  - Add configuration option to disable booting into set-up mode
  - Try optimizing power consumption during active time
  - OV5640 camera support
